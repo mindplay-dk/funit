@@ -1,60 +1,64 @@
 <?php
-use \FUnit\fu;
+
+use FUnit\fu;
 
 require __DIR__ . '/FUnit.php';
 
-fu::setup(function() {
-	// set a fixture to use in tests
-	fu::fixture('foobar', array('foo'=>'bar'));
-});
+class ExampleTest extends fu
+{
+	public function setup()
+	{
+		$this->fixture('foobar', array('foo' => 'bar'));
+	}
 
-fu::teardown(function() {
-	// this resets the fu::$fixtures array. May not provide clean shutdown
-	fu::reset_fixtures();
-});
+	public function this_is_a_test()
+	{
+		$this->ok(1, "the integer '1' is okay");
+		$this->ok(0, "the integer '0' is not okay"); // this will fail!
+	}
 
-fu::test("this is a test", function() {
-	fu::ok(1, "the integer '1' is okay");
-	fu::ok(0, "the integer '0' is not okay"); // this will fail!
-});
+	public function another_test()
+	{
+		$this->equal(true, 1, "the integer '1' is truthy");
+		$this->not_strict_equal(true, 1, "the integer '1' is NOT true");
+		// access a fixture
+		$foobar = $this->fixture('foobar');
+		$this->equal($foobar['foo'], 'bar', "the fixture 'foobar' should have a key 'foo' equal to 'baz'");
 
-fu::test("another test", function() {
-	fu::equal(true, 1, "the integer '1' is truthy");
-	fu::not_strict_equal(true, 1, "the integer '1' is NOT true");
-	// access a fixture
-	$foobar = fu::fixture('foobar');
-	fu::equal($foobar['foo'], 'bar', "the fixture 'foobar' should have a key 'foo' equal to 'baz'");
-
-	$fooarr = array('blam'=>'blaz');
-	fu::has('blam', $fooarr, "\$fooarr has a key named 'blam'");
-
-
-	$fooobj = new \StdClass;
-	$fooobj->blam = 'blaz';
-	fu::has('blam', $fooobj, "\$fooobj has a property named 'blam'");
-});
-
-fu::test('Forced failure', function() {
-	fu::fail('This is a forced fail');
-});
+		$fooarr = array('blam' => 'blaz');
+		$this->has('blam', $fooarr, "\$fooarr has a key named 'blam'");
 
 
-fu::test('Expected failure', function() {
-	fu::expect_fail('This is a good place to describe a missing test');
-});
+		$fooobj = new \StdClass;
+		$fooobj->blam = 'blaz';
+		$this->has('blam', $fooobj, "\$fooobj has a property named 'blam'");
+	}
 
+	public function forced_failure()
+	{
+		$this->fail('This is a forced fail');
+	}
 
-fu::test('Forced Errors/Exception', function() {
+	public function expected_failure()
+	{
+		$this->expect_fail('This is a good place to describe a missing test');
+	}
 
-	trigger_error('This was triggered inside a test', E_USER_ERROR);
+	public function forced_errors_and_exceptions()
+	{
+		trigger_error('This was triggered inside a test', E_USER_ERROR);
 
-	trigger_error('This was triggered inside a test', E_USER_NOTICE);
+		trigger_error('This was triggered inside a test', E_USER_NOTICE);
 
-	throw new Exception('This was thrown inside a test');
-});
+		throw new Exception('This was thrown inside a test');
+	}
+}
 
+$test = new ExampleTest();
 
-fu::run();
+$test->run();
 
 // this should output an empty array, because our fixtures will be gone
-var_dump(fu::$fixtures);
+var_dump($test->fixtures);
+
+#echo "<pre>"; var_dump($test->tests);
