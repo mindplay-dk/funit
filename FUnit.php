@@ -19,7 +19,7 @@ class Test
 	/**
 	 * @var callable
 	 */
-	public $test = null;
+	public $callback = null;
 
 	public $errors = array();
 
@@ -29,7 +29,7 @@ class Test
 
 	public function __construct($test)
 	{
-		$this->test = $test;
+		$this->callback = $test;
 	}
 }
 
@@ -465,7 +465,7 @@ abstract class fu
 		// to associate the assertions in a test with the test,
 		// we use this var to avoid the need to for globals
 		$this->current_test_name = $name;
-		$callback = $this->tests[$name]->test;
+		$callback = $this->tests[$name]->callback;
 
 		// setup
 		$this->before_run();
