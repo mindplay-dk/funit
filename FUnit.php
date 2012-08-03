@@ -9,17 +9,23 @@ use ReflectionMethod;
 
 abstract class fu
 {
-
 	const VERSION = '0.3';
 
 	/**
-	 * debug mode
+	 * @var bool toggle verbose report output (with backtraces)
 	 */
 	public $DEBUG = false;
+
 	public $DEBUG_COLOR = 'BLUE';
 
 	public $PASS = 'PASS';
+
 	public $FAIL = 'FAIL';
+
+    /**
+     * @var bool toggle colors in rendered report
+     */
+    public $color = true;
 
 	/**
 	 * $tests['name'] => array(
@@ -229,18 +235,21 @@ abstract class fu
 	 */
 	protected function color($txt, $color = 'DEFAULT')
 	{
+        if ($this->color === false) {
+            return $txt; // colors are disabled
+        }
+
 		if (PHP_SAPI === 'cli') {
 			// only color if output is a posix TTY
 			if (function_exists('posix_isatty') && posix_isatty(STDOUT)) {
 				$color = $this->TERM_COLORS[$color];
-				$txt = chr(27) . "[0;{$color}m{$txt}" . chr(27) . "[00m";
+				return chr(27) . "[0;{$color}m{$txt}" . chr(27) . "[00m";
 			}
 			// otherwise, don't touch $txt
 		} else {
 			$color = strtolower($color);
-			$txt = "<span style=\"color: $color;\">" . htmlspecialchars($txt) . "</span>";
+			return "<span style=\"color: $color;\">" . htmlspecialchars($txt) . "</span>";
 		}
-		return $txt;
 	}
 
 	protected function out($str)
