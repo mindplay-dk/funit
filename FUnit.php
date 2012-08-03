@@ -7,6 +7,32 @@ use Exception;
 use ReflectionClass;
 use ReflectionMethod;
 
+/**
+ * This class represents the state of an individual test.
+ */
+class Test
+{
+	public $run = false;
+
+	public $pass = false;
+
+	/**
+	 * @var callable
+	 */
+	public $test = null;
+
+	public $errors = array();
+
+	public $assertions = array();
+
+	public $timing = array();
+
+	public function __construct($test)
+	{
+		$this->test = $test;
+	}
+}
+
 abstract class fu
 {
 	const VERSION = '0.3';
@@ -68,12 +94,7 @@ abstract class fu
 	private $console_colors = false;
 
 	/**
-	 * $tests['name'] => array(
-	 *                 'run'=>false,
-	 *                 'pass'=>false,
-	 *                 'test'=>null,
-	 *                 'assertions'=>array('func_name'=>'foo', 'func_args'=array('a','b'), 'result'=>$result, 'msg'=>'blahblah'),
-	 *                 'timing' => array('setup'=>ts, 'run'=>ts, 'teardown'=>ts, 'total'=ts),
+	 * @var Test[] individual tests configured for this test-suite.
 	 */
 	public $tests = array();
 
@@ -105,13 +126,7 @@ abstract class fu
 		// configure tests:
 
 		foreach ($this->get_tests() as $method => $name) {
-			$this->tests[$name] = array(
-				'run' => false,
-				'pass' => false,
-				'test' => array($this, $method),
-				'errors' => array(),
-				'assertions' => array(),
-			);
+			$this->tests[$name] = new Test(array($this, $method));
 		}
 
 		// detect console vs HTML mode:
@@ -261,11 +276,10 @@ abstract class fu
 	 */
 	protected function add_error_data($edata)
 	{
-
 		$this->errors[] = $edata;
 
 		if ($this->current_test_name) {
-			$this->tests[$this->current_test_name]['errors'][] = $edata;
+			$this->tests[$this->current_test_name]->errors[] = $edata;
 		}
 	}
 
@@ -330,21 +344,6 @@ abstract class fu
 	}
 
 	/**
-	 * Output a report. Currently only supports text output
-	 *
-	 * @param string $format default is 'text'
-	 * @see $this->report_text()
-	 */
-	public function report($format = 'text')
-	{
-		switch ($format) {
-			case 'text':
-			default:
-				$this->report_text();
-		}
-	}
-
-	/**
 	 * Output a report as text
 	 *
 	 * Normally you would not call this method directly
@@ -352,7 +351,7 @@ abstract class fu
 	 * @see $this->report()
 	 * @see $this->run()
 	 */
-	protected function report_text()
+	protected function default_report()
 	{
 		$total_assert_counts = $this->assert_counts();
 		$test_counts = $this->test_counts();
@@ -360,10 +359,10 @@ abstract class fu
 		$this->out("RESULTS:");
 		$this->out("--------------------------------------------");
 
-		foreach ($this->tests as $name => $tdata) {
+		foreach ($this->tests as $name => $test) {
 
 			$assert_counts = $this->assert_counts($name);
-			if ($tdata['pass']) {
+			if ($test->pass) {
 				$test_color = 'GREEN';
 			} else {
 				if (($assert_counts['total'] - $assert_counts['expected_fail']) == $assert_counts['pass']) {
@@ -374,21 +373,21 @@ abstract class fu
 			}
 			$this->out("TEST:" . $this->color(" {$name} ({$assert_counts['pass']}/{$assert_counts['total']}):", $test_color));
 
-			foreach ($tdata['assertions'] as $ass) {
-				if ($ass['expected_fail']) {
+			foreach ($test->assertions as $assertion) {
+				if ($assertion['expected_fail']) {
 					$assert_color = 'YELLOW';
 				} else {
-					$assert_color = $ass['result'] == $this->pass ? 'GREEN' : 'RED';
+					$assert_color = $assertion['result'] == $this->pass ? 'GREEN' : 'RED';
 				}
 				$this->out(" * "
-					. $this->color("{$ass['result']}"
-						. " {$ass['func_name']}("
+					. $this->color("{$assertion['result']}"
+						. " {$assertion['func_name']}("
 						// @TODO we should coerce these into strings and output only on fail
 						// . implode(', ', $ass['func_args'])
-						. ") {$ass['msg']}" . ($ass['expected_fail'] ? ' (expected)' : ''), $assert_color));
+						. ") {$assertion['msg']}" . ($assertion['expected_fail'] ? ' (expected)' : ''), $assert_color));
 			}
-			if (count($tdata['errors']) > 0) {
-				foreach ($tdata['errors'] as $error) {
+			if (count($test->errors) > 0) {
+				foreach ($test->errors as $error) {
 					if ($this->debug) {
 						$sep = "\n  -> ";
 						$bt = $sep . implode($sep, $error['backtrace']);
@@ -407,11 +406,14 @@ abstract class fu
 		}
 
 
-		$err_count = count($tdata['errors']);
-		$err_color = (count($tdata['errors']) > 0) ? 'RED' : 'WHITE';
+		$err_count = count($test->errors);
+
+		$err_color = (count($test->errors) > 0)
+			? 'RED'
+			: 'WHITE';
+
 		$this->out("ERRORS/EXCEPTIONS: "
 			. $this->color($err_count, $err_color));
-
 
 		$this->out("ASSERTIONS: "
 			. $this->color("{$total_assert_counts['pass']} pass", 'GREEN') . ", "
@@ -443,7 +445,7 @@ abstract class fu
 	protected function add_assertion_result($func_name, $func_args, $result, $msg = null, $expected_fail = false)
 	{
 		$result = ($result) ? $this->pass : $this->fail;
-		$this->tests[$this->current_test_name]['assertions'][] = compact('func_name', 'func_args', 'result', 'msg', 'expected_fail');
+		$this->tests[$this->current_test_name]->assertions[] = compact('func_name', 'func_args', 'result', 'msg', 'expected_fail');
 	}
 
 	/**
@@ -465,15 +467,14 @@ abstract class fu
 		// to associate the assertions in a test with the test,
 		// we use this var to avoid the need to for globals
 		$this->current_test_name = $name;
-		$test = $this->tests[$name]['test'];
+		$callback = $this->tests[$name]->test;
 
 		// setup
 		$this->before_run();
 		$ts_setup = microtime(true);
 
 		try {
-
-			call_user_func($test);
+			call_user_func($callback);
 
 		} catch (Exception $e) {
 
@@ -487,31 +488,32 @@ abstract class fu
 		$ts_teardown = microtime(true);
 
 		$this->current_test_name = null;
-		$this->tests[$name]['run'] = true;
-		$this->tests[$name]['timing'] = array(
+		$this->tests[$name]->run = true;
+		$this->tests[$name]->timing = array(
 			'setup' => $ts_setup - $ts_start,
 			'run' => $ts_run - $ts_setup,
 			'teardown' => $ts_teardown - $ts_run,
 			'total' => $ts_teardown - $ts_start,
 		);
 
-		if (count($this->tests[$name]['errors']) > 0) {
+		if (count($this->tests[$name]->errors) > 0) {
 
-			$this->tests[$name]['pass'] = false;
+			$this->tests[$name]->pass = false;
 
 		} else {
 
 			$assert_counts = $this->assert_counts($name);
 			if ($assert_counts['pass'] === $assert_counts['total']) {
-				$this->tests[$name]['pass'] = true;
+				$this->tests[$name]->pass = true;
 			} else {
-				$this->tests[$name]['pass'] = false;
+				$this->tests[$name]->pass = false;
 			}
 		}
 
-		$this->debug_out("Timing: " . json_encode($this->tests[$name]['timing'])); // json is easy to read
+		$this->debug_out("Timing: " . json_encode($this->tests[$name]->timing)); // json is easy to read
 
 		return $this->tests[$name];
+		// TODO check if this return-value is used?
 
 	}
 
@@ -525,7 +527,7 @@ abstract class fu
 	 */
 	public function run_tests($filter = null)
 	{
-		foreach ($this->tests as $name => &$test) {
+		foreach ($this->tests as $name => $test) {
 			if (null === $filter || (stripos($name, $filter) !== false)) {
 				$this->run_test($name);
 			}
@@ -568,28 +570,22 @@ abstract class fu
 	 */
 	protected function assert_counts($test_name = null)
 	{
-
 		$total = 0;
 		$pass = 0;
 		$fail = 0;
 		$expected_fail = 0;
 
-		if ($test_name) {
-			$assertions = $this->tests[$test_name]['assertions'];
-			$rs = $this->test_asserts($test_name, $assertions);
+		$names = $test_name === null
+			? array_keys($this->tests)
+			: array($test_name);
+
+		foreach ($names as $name) {
+			$test = $this->tests[$name];
+			$rs = $this->test_asserts($test_name, $test->assertions);
 			$total += $rs['total'];
 			$pass += $rs['pass'];
 			$fail += $rs['fail'];
 			$expected_fail += $rs['expected_fail'];
-		} else {
-			foreach ($this->tests as $test_name => $tdata) {
-				$assertions = $this->tests[$test_name]['assertions'];
-				$rs = $this->test_asserts($test_name, $assertions);
-				$total += $rs['total'];
-				$pass += $rs['pass'];
-				$fail += $rs['fail'];
-				$expected_fail += $rs['expected_fail'];
-			}
 		}
 
 		return compact('total', 'pass', 'fail', 'expected_fail');
@@ -610,11 +606,11 @@ abstract class fu
 		$run = 0;
 		$pass = 0;
 
-		foreach ($this->tests as $test_name => $tdata) {
-			if ($tdata['pass']) {
+		foreach ($this->tests as $test_name => $test) {
+			if ($test->pass) {
 				$pass++;
 			}
-			if ($tdata['run']) {
+			if ($test->run) {
 				$run++;
 			}
 		}
@@ -791,7 +787,6 @@ abstract class fu
 	 * @param boolean $report whether or not to output a report after tests run. Default true.
 	 * @param string $filter optional test case name filter
 	 * @see $this->run_tests()
-	 * @see $this->report()
 	 */
 	public function run($report = true, $filter = null)
 	{
@@ -801,7 +796,7 @@ abstract class fu
 		$this->run_tests($filter);
 
 		if ($report) {
-			$this->report();
+			$this->default_report();
 		}
 
 		// restore handlers
