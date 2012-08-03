@@ -509,10 +509,6 @@ abstract class fu
 		}
 
 		$this->debug_out("Timing: " . json_encode($this->tests[$name]->timing)); // json is easy to read
-
-		return $this->tests[$name];
-		// TODO check if this return-value is used?
-
 	}
 
 	/**
