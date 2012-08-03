@@ -212,7 +212,7 @@ abstract class fu
 	 *
 	 * @param Exception $e
 	 * @return array ['datetime', 'num', 'type', 'msg', 'file', 'line']
-	 * @see $this->run_test()
+	 * @see run_test()
 	 */
 	protected function exception_handler($e)
 	{
@@ -233,7 +233,7 @@ abstract class fu
 	 * custom error handler to catch errors triggered while running tests. this is
 	 * registered at the start of $this->run() and deregistered at stop
 	 *
-	 * @see $this->run()
+	 * @see run()
 	 */
 	public function error_handler($num, $msg, $file, $line, $vars)
 	{
@@ -270,9 +270,9 @@ abstract class fu
 	 *
 	 * @param array $edata ['datetime', 'num', 'type', 'msg', 'file', 'line']
 	 *
-	 * @see $this->errors
-	 * @see $this->error_handler()
-	 * @see $this->exception_handler()
+	 * @see errors
+	 * @see error_handler()
+	 * @see exception_handler()
 	 */
 	protected function add_error_data($edata)
 	{
@@ -292,26 +292,26 @@ abstract class fu
 	 * Colouring code loosely based on
 	 * http://www.zend.com//code/codex.php?ozid=1112&single=1
 	 *
-	 * @param string $line
+	 * @param string $text the text to color-code
 	 * @param string $color default is 'DEFAULT'
 	 *
-	 * @see $this->term_colors
+	 * @see $term_colors
 	 */
-	protected function color($txt, $color = 'DEFAULT')
+	protected function color($text, $color = 'DEFAULT')
 	{
 		if ($this->console) {
 			if ($this->color && $this->console_colors) {
 				$color = $this->term_colors[$color];
-				return chr(27) . "[0;{$color}m{$txt}" . chr(27) . "[00m";
+				return chr(27) . "[0;{$color}m{$text}" . chr(27) . "[00m";
 			} else {
-				return $txt; // colors disabled, or not supported on this console
+				return $text; // colors disabled, or not supported on this console
 			}
 		} else {
 			if ($this->color) {
 				$color = strtolower($color);
-				return "<span style=\"color: $color;\">" . htmlspecialchars($txt) . "</span>";
+				return "<span style=\"color: $color;\">" . htmlspecialchars($text) . "</span>";
 			} else {
-				return htmlspecialchars($txt);
+				return htmlspecialchars($text);
 			}
 		}
 	}
@@ -348,8 +348,7 @@ abstract class fu
 	 *
 	 * Normally you would not call this method directly
 	 *
-	 * @see $this->report()
-	 * @see $this->run()
+	 * @see run()
 	 */
 	protected function default_report()
 	{
@@ -429,18 +428,18 @@ abstract class fu
 	/**
 	 * add the result of an assertion
 	 *
-	 * Normally you would not call this method directly
-	 *
 	 * @param string $func_name the name of the assertion function
 	 * @param array $func_args the arguments for the assertion. Really just the $a (actual) and $b (expected)
 	 * @param mixed $result this is expected to be truthy or falsy, and is converted into $this->pass or $this->fail
 	 * @param string $msg optional message describing the assertion
 	 * @param bool $expected_fail optional expectation of the assertion to fail
-	 * @see $this->ok()
-	 * @see $this->equal()
-	 * @see $this->not_equal()
-	 * @see $this->strict_equal()
-	 * @see $this->not_strict_equal()
+	 *
+	 * @note Normally you would not call this method directly
+	 * @see ok()
+	 * @see equal()
+	 * @see not_equal()
+	 * @see strict_equal()
+	 * @see not_strict_equal()
 	 */
 	protected function add_assertion_result($func_name, $func_args, $result, $msg = null, $expected_fail = false)
 	{
@@ -449,15 +448,14 @@ abstract class fu
 	}
 
 	/**
-	 * Normally you would not call this method directly
-	 *
 	 * Run a single test of the passed $name
 	 *
 	 * @param string $name the name of the test to run
-	 * @see $this->run_tests()
-	 * @see $this->setup()
-	 * @see $this->teardown()
-	 * @see $this->test()
+	 *
+	 * @note Normally you would not call this method directly
+	 * @see run_tests()
+	 * @see setup()
+	 * @see teardown()
 	 */
 	protected function run_test($name)
 	{
@@ -521,9 +519,10 @@ abstract class fu
 	 * Normally you would not call this method directly
 	 *
 	 * Run all of the registered tests
+	 *
 	 * @param string $filter optional test case name filter
-	 * @see $this->run()
-	 * @see $this->run_test()
+	 * @see run()
+	 * @see run_test()
 	 */
 	public function run_tests($filter = null)
 	{
@@ -597,7 +596,6 @@ abstract class fu
 	 *
 	 * Retrieves stats about tests run. returns an array with the keys 'total', 'pass', 'run'
 	 *
-	 * @param string $test_name optional the name of the test about which to get assertion stats
 	 * @return array has keys 'total', 'pass', 'run'
 	 */
 	protected function test_counts()
@@ -629,7 +627,7 @@ abstract class fu
 	 *
 	 * @param string $key the key to set or retrieve
 	 * @param mixed $val the value to assign to the key. OPTIONAL
-	 * @see $this->setup()
+	 * @see setup()
 	 * @return mixed the value of the $key passed.
 	 */
 	public function fixture($key, $val = null)
@@ -644,8 +642,8 @@ abstract class fu
 	/**
 	 * removes all fixtures. This won't magically close connections or files, tho
 	 *
-	 * @see $this->fixture()
-	 * @see $this->teardown()
+	 * @see fixture()
+	 * @see teardown()
 	 */
 	public function reset_fixtures()
 	{
@@ -722,6 +720,7 @@ abstract class fu
 
 	/**
 	 * assert that $a is truthy. Casts $a to boolean for result
+	 *
 	 * @param mixed $a the actual value
 	 * @param string $msg optional description of assertion
 	 */
@@ -738,6 +737,7 @@ abstract class fu
 	/**
 	 * assert that $haystack has a key or property named $needle. If $haystack
 	 * is neither, returns false
+	 *
 	 * @param string $needle the key or property to look for
 	 * @param array|object $haystack the array or object to test
 	 * @param string $msg optional description of assertion
@@ -761,8 +761,9 @@ abstract class fu
 
 	/**
 	 * Force a failed assertion
+	 *
 	 * @param string $msg optional description of assertion
-	 * @param bool $exptected optionally expect this test to fail
+	 * @param bool $expected optionally expect this test to fail
 	 */
 	public function fail($msg = null, $expected = false)
 	{
@@ -772,9 +773,9 @@ abstract class fu
 
 	/**
 	 * Fail an assertion in an expected way
+	 *
 	 * @param string $msg optional description of assertion
-	 * @param bool $exptected optionally expect this test to fail
-	 * @see $this->fail()
+	 * @see fail()
 	 */
 	public function expect_fail($msg = null)
 	{
@@ -786,7 +787,7 @@ abstract class fu
 	 *
 	 * @param boolean $report whether or not to output a report after tests run. Default true.
 	 * @param string $filter optional test case name filter
-	 * @see $this->run_tests()
+	 * @see run_tests()
 	 */
 	public function run($report = true, $filter = null)
 	{
