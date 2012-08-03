@@ -14,18 +14,58 @@ abstract class fu
 	/**
 	 * @var bool toggle verbose report output (with backtraces)
 	 */
-	public $DEBUG = false;
+	public $debug = false;
 
-	public $DEBUG_COLOR = 'BLUE';
+	/**
+	 * @var string color for debug-messages
+	 * @see debug_out()
+	 */
+	public $debug_color = 'BLUE';
 
-	public $PASS = 'PASS';
+	/**
+	 * @var string displayed when a test passes
+	 */
+	public $pass = 'PASS';
 
-	public $FAIL = 'FAIL';
+	/**
+	 * @var string displayed when a test fails
+	 */
+	public $fail = 'FAIL';
 
-    /**
-     * @var bool toggle colors in rendered report
-     */
-    public $color = true;
+	/**
+	 * @var array map where error-code => display-name
+	 */
+	public $error_labels = array(
+		E_ERROR => 'Error',
+		E_WARNING => 'Warning',
+		E_PARSE => 'Parser Error',
+		E_NOTICE => 'Notice',
+		E_CORE_ERROR => 'Core Error',
+		E_CORE_WARNING => 'Core Warning',
+		E_COMPILE_ERROR => 'Compile Error',
+		E_COMPILE_WARNING => 'Compile Warning',
+		E_USER_ERROR => 'User Error',
+		E_USER_WARNING => 'User Warning',
+		E_USER_NOTICE => 'User Notice',
+		E_STRICT => 'Runtime Notice',
+		E_RECOVERABLE_ERROR => 'Catchable Fatal Error'
+	);
+
+	/**
+	 * @var bool toggle console-based output (vs HTML output)
+	 * @see __construct()
+	 */
+	public $console = false;
+
+	/**
+	 * @var bool toggle colors in rendered report
+	 */
+	public $color = true;
+
+	/**
+	 * @var bool true if the console supports colors (POSIX TTY)
+	 */
+	private $console_colors = false;
 
 	/**
 	 * $tests['name'] => array(
@@ -43,7 +83,12 @@ abstract class fu
 
 	public $errors = array();
 
-	protected $TERM_COLORS = array(
+	/**
+	 * Map of terminal colors.
+	 *
+	 * @var array map where color-name => color-code
+	 */
+	protected $term_colors = array(
 		'BLACK' => "30",
 		'RED' => "31",
 		'GREEN' => "32",
@@ -57,6 +102,8 @@ abstract class fu
 
 	public function __construct()
 	{
+		// configure tests:
+
 		foreach ($this->get_tests() as $method => $name) {
 			$this->tests[$name] = array(
 				'run' => false,
@@ -66,6 +113,14 @@ abstract class fu
 				'assertions' => array(),
 			);
 		}
+
+		// detect console vs HTML mode:
+
+		$this->console = PHP_SAPI === 'cli';
+
+		// detecte support for colors on the console:
+
+		$this->console_colors = function_exists('posix_isatty') && posix_isatty(STDOUT);
 	}
 
 	/**
@@ -117,9 +172,17 @@ abstract class fu
 		$tests = array();
 
 		foreach ($class->getMethods() as $method) {
-			if ($method->getDeclaringClass()->isAbstract()) continue; // skip methods on abstract classes
-			if (!$method->isPublic()) continue; // skip non-public methods
-			if (in_array($method->name, array('setup', 'teardown'))) continue; // skip setup/teardown methods
+			if ($method->getDeclaringClass()->isAbstract()) {
+				continue; // skip methods on abstract classes
+			}
+
+			if (!$method->isPublic()) {
+				continue; // skip non-public methods
+			}
+
+			if (in_array($method->name, array('setup', 'teardown'))) {
+				continue; // skip setup/teardown methods
+			}
 
 			$tests[$method->name] = strtr($method->name, '_', ' ');
 		}
@@ -154,30 +217,14 @@ abstract class fu
 	/**
 	 * custom error handler to catch errors triggered while running tests. this is
 	 * registered at the start of $this->run() and deregistered at stop
+	 *
 	 * @see $this->run()
 	 */
 	public function error_handler($num, $msg, $file, $line, $vars)
 	{
-
 		$datetime = date("Y-m-d H:i:s (T)");
 
-		$types = array(
-			E_ERROR => 'Error',
-			E_WARNING => 'Warning',
-			E_PARSE => 'Parsing Error',
-			E_NOTICE => 'Notice',
-			E_CORE_ERROR => 'Core Error',
-			E_CORE_WARNING => 'Core Warning',
-			E_COMPILE_ERROR => 'Compile Error',
-			E_COMPILE_WARNING => 'Compile Warning',
-			E_USER_ERROR => 'User Error',
-			E_USER_WARNING => 'User Warning',
-			E_USER_NOTICE => 'User Notice',
-			E_STRICT => 'Runtime Notice',
-			E_RECOVERABLE_ERROR => 'Catchable Fatal Error'
-		);
-
-		$type = $types[$num];
+		$type = $this->error_labels[$num];
 
 		$backtrace = array();
 		foreach (debug_backtrace() as $bt) {
@@ -205,7 +252,9 @@ abstract class fu
 	/**
 	 * adds error data to the main $errors var property and the current test's
 	 * error array
+	 *
 	 * @param array $edata ['datetime', 'num', 'type', 'msg', 'file', 'line']
+	 *
 	 * @see $this->errors
 	 * @see $this->error_handler()
 	 * @see $this->exception_handler()
@@ -231,42 +280,53 @@ abstract class fu
 	 *
 	 * @param string $line
 	 * @param string $color default is 'DEFAULT'
-	 * @see $this->TERM_COLORS
+	 *
+	 * @see $this->term_colors
 	 */
 	protected function color($txt, $color = 'DEFAULT')
 	{
-        if ($this->color === false) {
-            return $txt; // colors are disabled
-        }
-
-		if (PHP_SAPI === 'cli') {
-			// only color if output is a posix TTY
-			if (function_exists('posix_isatty') && posix_isatty(STDOUT)) {
-				$color = $this->TERM_COLORS[$color];
+		if ($this->console) {
+			if ($this->color && $this->console_colors) {
+				$color = $this->term_colors[$color];
 				return chr(27) . "[0;{$color}m{$txt}" . chr(27) . "[00m";
+			} else {
+				return $txt; // colors disabled, or not supported on this console
 			}
-			// otherwise, don't touch $txt
 		} else {
-			$color = strtolower($color);
-			return "<span style=\"color: $color;\">" . htmlspecialchars($txt) . "</span>";
+			if ($this->color) {
+				$color = strtolower($color);
+				return "<span style=\"color: $color;\">" . htmlspecialchars($txt) . "</span>";
+			} else {
+				return htmlspecialchars($txt);
+			}
 		}
 	}
 
+	/**
+	 * Output a string
+	 *
+	 * @param $str string to output
+	 */
 	protected function out($str)
 	{
-		if (PHP_SAPI === 'cli') {
+		if ($this->console) {
 			echo $str . "\n";
 		} else {
 			echo "<tt>" . nl2br($str) . "</tt><br/>";
 		}
 	}
 
+	/**
+	 * Output a debug message - only if {@see $debug} is set to true.
+	 *
+	 * @param $str debug message to output
+	 */
 	protected function debug_out($str)
 	{
-		if (!$this->DEBUG) {
+		if (!$this->debug) {
 			return;
 		}
-		$this->out($this->color($str, $this->DEBUG_COLOR));
+		$this->out($this->color($str, $this->debug_color));
 	}
 
 	/**
@@ -294,8 +354,6 @@ abstract class fu
 	 */
 	protected function report_text()
 	{
-
-
 		$total_assert_counts = $this->assert_counts();
 		$test_counts = $this->test_counts();
 
@@ -320,7 +378,7 @@ abstract class fu
 				if ($ass['expected_fail']) {
 					$assert_color = 'YELLOW';
 				} else {
-					$assert_color = $ass['result'] == $this->PASS ? 'GREEN' : 'RED';
+					$assert_color = $ass['result'] == $this->pass ? 'GREEN' : 'RED';
 				}
 				$this->out(" * "
 					. $this->color("{$ass['result']}"
@@ -331,7 +389,7 @@ abstract class fu
 			}
 			if (count($tdata['errors']) > 0) {
 				foreach ($tdata['errors'] as $error) {
-					if ($this->DEBUG) {
+					if ($this->debug) {
 						$sep = "\n  -> ";
 						$bt = $sep . implode($sep, $error['backtrace']);
 					} else {
@@ -373,7 +431,7 @@ abstract class fu
 	 *
 	 * @param string $func_name the name of the assertion function
 	 * @param array $func_args the arguments for the assertion. Really just the $a (actual) and $b (expected)
-	 * @param mixed $result this is expected to be truthy or falsy, and is converted into $this->PASS or $this->FAIL
+	 * @param mixed $result this is expected to be truthy or falsy, and is converted into $this->pass or $this->fail
 	 * @param string $msg optional message describing the assertion
 	 * @param bool $expected_fail optional expectation of the assertion to fail
 	 * @see $this->ok()
@@ -384,7 +442,7 @@ abstract class fu
 	 */
 	protected function add_assertion_result($func_name, $func_args, $result, $msg = null, $expected_fail = false)
 	{
-		$result = ($result) ? $this->PASS : $this->FAIL;
+		$result = ($result) ? $this->pass : $this->fail;
 		$this->tests[$this->current_test_name]['assertions'][] = compact('func_name', 'func_args', 'result', 'msg', 'expected_fail');
 	}
 
@@ -483,9 +541,9 @@ abstract class fu
 		$expected_fail = 0;
 
 		foreach ($assertions as $ass) {
-			if ($ass['result'] === $this->PASS) {
+			if ($ass['result'] === $this->pass) {
 				$pass++;
-			} elseif ($ass['result'] === $this->FAIL) {
+			} elseif ($ass['result'] === $this->fail) {
 				$fail++;
 				if ($ass['expected_fail']) {
 					$expected_fail++;
