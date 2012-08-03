@@ -590,17 +590,6 @@ abstract class fu
 	}
 
 	/**
-	 * add a test to be run
-	 *
-	 * @param string $name the name for the test
-	 * @param Closure $test the test function
-	 */
-	public function test($name, Closure $test)
-	{
-		$this->add_test($name, $test);
-	}
-
-	/**
 	 * assert that $a is equal to $b. Uses `==` for comparison
 	 *
 	 * @param mixed $a the actual value
@@ -739,11 +728,11 @@ abstract class fu
 	 */
 	public function run($report = true, $filter = null)
 	{
-
 		// set handlers
 		$old_error_handler = set_error_handler(array($this, 'error_handler'));
 
 		$this->run_tests($filter);
+
 		if ($report) {
 			$this->report();
 		}
