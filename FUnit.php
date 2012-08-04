@@ -67,6 +67,15 @@ class Assertion
 		$this->msg = $msg;
 		$this->description = $description;
 	}
+
+	public function format_args()
+	{
+		$strings = array_map(function($var) {
+			return var_export($var, true);
+		}, $this->func_args);
+
+		return strtr(implode(', ', $strings), array("\r"=>"", "\n"=>""));
+	}
 }
 
 /**
@@ -175,7 +184,7 @@ abstract class fu
 	/**
 	 * @var bool toggle verbose report output (with backtraces)
 	 */
-	public $debug = true;
+	public $debug = false;
 
 	/**
 	 * @var string color for debug-messages
@@ -470,7 +479,7 @@ abstract class fu
 		$sum_expected_fail = 0;
 		$sum_total = 0;
 
-		foreach ($this->tests as $name => $test) {
+		foreach ($this->tests as $test) {
 
 			$assert_counts = $test->get_assertion_count();
 
@@ -489,7 +498,7 @@ abstract class fu
 				}
 			}
 
-			$this->out("TEST:" . $this->color(" {$name} ({$assert_counts->pass}/{$assert_counts->total}):", $test_color));
+			$this->out("TEST: " . $this->color("{$test->name} ({$assert_counts->pass}/{$assert_counts->total}):", $test_color));
 
 			foreach ($test->assertions as $assertion) {
 				if ($assertion->expected_fail) {
@@ -497,12 +506,17 @@ abstract class fu
 				} else {
 					$assert_color = $assertion->result ? 'GREEN' : 'RED';
 				}
-				$this->out(" * "
-					. $this->color("{$assertion->result}"
-						. " {$assertion->func_name}("
-						// @TODO we should coerce these into strings and output only on fail
-						// . implode(', ', $ass['func_args'])
-						. ") {$assertion->msg}" . ($assertion->expected_fail ? ' (expected)' : ''), $assert_color));
+
+				$status = $test->pass ? $this->pass : $this->fail;
+
+				$args = ($assertion->result === false) || ($this->debug === true)
+					? $assertion->format_args()
+					: '...';
+
+				$expected = ($assertion->expected_fail ? ' (expected)' : '');
+
+				$this->out(" * {$status}: "
+					. $this->color(" {$assertion->func_name}({$args}) {$assertion->msg}{$expected}", $assert_color));
 			}
 			if (count($test->errors) > 0) {
 				foreach ($test->errors as $error) {
@@ -688,7 +702,7 @@ abstract class fu
 	{
 		$this->current_test->assertions[] = new Assertion(
 			__FUNCTION__,
-			func_get_args(),
+			array($a, $b),
 			($a == $b),
 			$msg,
 			'Expected: ' . var_export($a, true) . ' and ' . var_export($b, true) . ' to be loosely equal'
@@ -797,9 +811,9 @@ abstract class fu
 	 * Force a failed assertion
 	 *
 	 * @param string $msg optional description of assertion
-	 * @param bool $expected optionally expect this test to fail
+	 * @param bool $expected_fail optionally expect this test to fail
 	 */
-	public function fail($msg = null, $expected = false)
+	public function fail($msg = null, $expected_fail = false)
 	{
 		$assertion = new Assertion(
 			__FUNCTION__,
@@ -808,7 +822,7 @@ abstract class fu
 			$msg
 		);
 
-		$assertion->expected_fail = $expected;
+		$assertion->expected_fail = $expected_fail;
 
 		$this->current_test->assertions[] = $assertion;
 	}
