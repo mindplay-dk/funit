@@ -23,6 +23,9 @@ class Test
 	 */
 	public $callback = null;
 
+	/**
+	 * @var Error[] list of Errors caught while running this Test
+	 */
 	public $errors = array();
 
 	public $assertions = array();
@@ -33,6 +36,66 @@ class Test
 	{
 		$this->name = $name;
 		$this->callback = $callback;
+	}
+}
+
+/**
+ * This class represents a recorded error or exception, and backtrace information.
+ */
+class Error
+{
+	public $datetime;
+	public $num;
+	public $type;
+	public $msg;
+	public $file;
+	public $line;
+
+	/**
+	 * @var string[] backtrace statements
+	 */
+	public $backtrace = array();
+
+	public function __construct($num, $type, $msg, $file, $line)
+	{
+		$this->datetime = date("Y-m-d H:i:s (T)");
+
+		$this->num = $num;
+		$this->type = $type;
+		$this->msg = $msg;
+		$this->file = $file;
+		$this->line = $line;
+	}
+
+	/**
+	 * Add backtrace data to this Error
+	 *
+	 * @param array $backtrace a backtrace array, such as produced by debug_backtrace() and Exception::getTrace()
+	 *
+	 * @see debug_backtrace()
+	 * @see Exception::getTrace()
+	 */
+	public function add_backtrace($backtrace)
+	{
+		foreach ($backtrace as $bt) {
+			$str = '';
+
+			if (isset($bt['class']) && __CLASS__ == $bt['class']) {
+				continue; // don't bother backtracing from this class
+			}
+
+			if (isset($bt['file'])) {
+				$str .= $bt['file'] . '#' . $bt['line'];
+			}
+
+			if (isset($bt['class']) && isset($bt['function'])) {
+				$str .= " {$bt['class']}::{$bt['function']}(...)";
+			} elseif (isset($bt['function'])) {
+				$str .= " {$bt['function']}(...)";
+			}
+
+			$this->backtrace[] = $str;
+		}
 	}
 }
 
@@ -107,8 +170,6 @@ abstract class fu
 	public $current_test = null;
 
 	public $fixtures = array();
-
-	public $errors = array();
 
 	/**
 	 * Map of terminal colors.
@@ -221,16 +282,17 @@ abstract class fu
 	 */
 	protected function exception_handler($e)
 	{
-		$datetime = date("Y-m-d H:i:s (T)");
-		$num = 0;
-		$type = get_class($e);
-		$msg = $e->getMessage();
-		$file = $e->getFile();
-		$line = $e->getLine();
+		$error = new Error(
+			0,
+			get_class($e),
+			$e->getMessage(),
+			$e->getLine(),
+			$e->getFile()
+		);
 
-		$edata = compact('datetime', 'num', 'type', 'msg', 'file', 'line');
+		$error->add_backtrace($e->getTrace());
 
-		$this->add_error_data($edata);
+		$this->current_test->errors[] = $error;
 	}
 
 
@@ -239,55 +301,22 @@ abstract class fu
 	 * registered at the start of $this->run() and deregistered at stop
 	 *
 	 * @see run()
+	 * @see Test::$errors
 	 */
 	public function error_handler($num, $msg, $file, $line, $vars)
 	{
-		$datetime = date("Y-m-d H:i:s (T)");
+		$error = new Error(
+			$num,
+			$this->error_labels[$num],
+			$msg,
+			$line,
+			$file
+		);
 
-		$type = $this->error_labels[$num];
+		$error->add_backtrace(debug_backtrace());
 
-		$backtrace = array();
-		foreach (debug_backtrace() as $bt) {
-			$trace = '';
-			if (isset($bt['function']) && __FUNCTION__ == $bt['function'] && isset($bt['class']) && __CLASS__ == $bt['class']) {
-				continue; // don't bother backtracing
-			}
-			if (isset($bt['file'])) {
-				$trace .= $bt['file'] . '#' . $bt['line'];
-			}
-			if (isset($bt['class']) && isset($bt['function'])) {
-				$trace .= " {$bt['class']}::{$bt['function']}(...)";
-			} elseif (isset($bt['function'])) {
-				$trace .= " {$bt['function']}(...)";
-			}
-			$backtrace[] = $trace;
-
-		}
-
-		$edata = compact('datetime', 'num', 'type', 'msg', 'file', 'line', 'backtrace');
-
-		$this->add_error_data($edata);
+		$this->current_test->errors[] = $error;
 	}
-
-	/**
-	 * adds error data to the main $errors var property and the current test's
-	 * error array
-	 *
-	 * @param array $edata ['datetime', 'num', 'type', 'msg', 'file', 'line']
-	 *
-	 * @see errors
-	 * @see error_handler()
-	 * @see exception_handler()
-	 */
-	protected function add_error_data($edata)
-	{
-		$this->errors[] = $edata;
-
-		if ($this->current_test) {
-			$this->current_test->errors[] = $edata;
-		}
-	}
-
 
 	/**
 	 * Format a line for printing. Detects
@@ -300,7 +329,12 @@ abstract class fu
 	 * @param string $text the text to color-code
 	 * @param string $color default is 'DEFAULT'
 	 *
+	 * @return string color-coded text (in terminal escape-codes) or HTML tags
+	 *
 	 * @see $term_colors
+	 * @see $console
+	 * @see $color
+	 * @see $console_colors
 	 */
 	protected function color($text, $color = 'DEFAULT')
 	{
@@ -394,13 +428,13 @@ abstract class fu
 				foreach ($test->errors as $error) {
 					if ($this->debug) {
 						$sep = "\n  -> ";
-						$bt = $sep . implode($sep, $error['backtrace']);
+						$bt = $sep . implode($sep, $error->backtrace);
 					} else {
-						$bt = "{$error['file']}#{$error['line']}";
+						$bt = "{$error->file}#{$error->line}";
 					}
 					$this->out(
 						' * ' . $this->color(
-							strtoupper($error['type']) . ": {$error['msg']} in {$bt}",
+							strtoupper($error->type) . ": {$error->msg} in {$bt}",
 							'RED')
 					);
 				}
