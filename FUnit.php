@@ -19,9 +19,9 @@ class Test
 	public $pass = false;
 
 	/**
-	 * @var callable
+	 * @var string test method-name
 	 */
-	public $callback = null;
+	public $method;
 
 	/**
 	 * @var Error[] list of Errors caught while running this Test
@@ -35,10 +35,10 @@ class Test
 
 	public $timing = array();
 
-	public function __construct($name, $callback)
+	public function __construct($name, $method)
 	{
 		$this->name = $name;
-		$this->callback = $callback;
+		$this->method = $method;
 	}
 
 	public function get_assertion_count()
@@ -149,8 +149,8 @@ class Error
 		foreach ($backtrace as $bt) {
 			$str = '';
 
-			if (isset($bt['class']) && __CLASS__ == $bt['class']) {
-				continue; // don't bother backtracing from this class
+			if (isset($bt['file']) && $bt['file'] === __FILE__) {
+				continue; // skip backtraces from this file
 			}
 
 			if (isset($bt['file'])) {
@@ -175,7 +175,7 @@ abstract class fu
 	/**
 	 * @var bool toggle verbose report output (with backtraces)
 	 */
-	public $debug = false;
+	public $debug = true;
 
 	/**
 	 * @var string color for debug-messages
@@ -334,7 +334,7 @@ abstract class fu
 				continue; // skip setup/teardown methods
 			}
 
-			$tests[] = new Test(strtr($method->name, '_', ' '), array($this, $method->name));
+			$tests[] = new Test(strtr($method->name, '_', ' '), $method->name);
 		}
 
 		return $tests;
@@ -564,20 +564,17 @@ abstract class fu
 		// to associate the assertions in a test with the test,
 		// we use this var to avoid the need to for globals
 		$this->current_test = $test;
-		$callback = $test->callback;
 
 		// setup
 		$this->before_run();
 		$ts_setup = microtime(true);
 
 		try {
-			call_user_func($callback);
-
+			$this->{$test->method}();
 		} catch (Exception $e) {
-
 			$this->exception_handler($e);
-
 		}
+
 		$ts_run = microtime(true);
 
 		// teardown
