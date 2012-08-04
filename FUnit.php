@@ -12,6 +12,8 @@ use ReflectionMethod;
  */
 class Test
 {
+	public $name;
+
 	public $run = false;
 
 	public $pass = false;
@@ -27,9 +29,10 @@ class Test
 
 	public $timing = array();
 
-	public function __construct($test)
+	public function __construct($name, $callback)
 	{
-		$this->callback = $test;
+		$this->name = $name;
+		$this->callback = $callback;
 	}
 }
 
@@ -98,7 +101,10 @@ abstract class fu
 	 */
 	public $tests = array();
 
-	public $current_test_name = null;
+	/**
+	 * @var Test
+	 */
+	public $current_test = null;
 
 	public $fixtures = array();
 
@@ -125,9 +131,7 @@ abstract class fu
 	{
 		// configure tests:
 
-		foreach ($this->get_tests() as $method => $name) {
-			$this->tests[$name] = new Test(array($this, $method));
-		}
+		$this->tests = $this->get_tests();
 
 		// detect console vs HTML mode:
 
@@ -174,12 +178,13 @@ abstract class fu
 	/**
 	 * Returns a list of the test-methods (and display-names) of the concrete test-class.
 	 *
-	 * @return array map, where method-name => display-name
+	 * @return Test[] list of detected Tests
 	 */
 	public function get_tests()
 	{
 		/**
 		 * @var ReflectionMethod $method
+		 * @var Test[] $tests
 		 */
 
 		$class = new ReflectionClass(get_class($this));
@@ -199,7 +204,7 @@ abstract class fu
 				continue; // skip setup/teardown methods
 			}
 
-			$tests[$method->name] = strtr($method->name, '_', ' ');
+			$tests[] = new Test(strtr($method->name, '_', ' '), array($this, $method->name));
 		}
 
 		return $tests;
@@ -278,8 +283,8 @@ abstract class fu
 	{
 		$this->errors[] = $edata;
 
-		if ($this->current_test_name) {
-			$this->tests[$this->current_test_name]->errors[] = $edata;
+		if ($this->current_test) {
+			$this->current_test->errors[] = $edata;
 		}
 	}
 
@@ -360,7 +365,7 @@ abstract class fu
 
 		foreach ($this->tests as $name => $test) {
 
-			$assert_counts = $this->assert_counts($name);
+			$assert_counts = $this->assert_counts($test);
 			if ($test->pass) {
 				$test_color = 'GREEN';
 			} else {
@@ -444,28 +449,30 @@ abstract class fu
 	protected function add_assertion_result($func_name, $func_args, $result, $msg = null, $expected_fail = false)
 	{
 		$result = ($result) ? $this->pass : $this->fail;
-		$this->tests[$this->current_test_name]->assertions[] = compact('func_name', 'func_args', 'result', 'msg', 'expected_fail');
+		$this->current_test->assertions[] = compact('func_name', 'func_args', 'result', 'msg', 'expected_fail');
 	}
 
 	/**
 	 * Run a single test of the passed $name
 	 *
-	 * @param string $name the name of the test to run
+	 * @param Test $test the Test to run
 	 *
 	 * @note Normally you would not call this method directly
 	 * @see run_tests()
 	 * @see setup()
 	 * @see teardown()
 	 */
-	protected function run_test($name)
+	protected function run_test(Test $test)
 	{
+		$name = $test->name;
+
 		$this->out("Running test '{$name}...'");
 		$ts_start = microtime(true);
 
 		// to associate the assertions in a test with the test,
 		// we use this var to avoid the need to for globals
-		$this->current_test_name = $name;
-		$callback = $this->tests[$name]->callback;
+		$this->current_test = $test;
+		$callback = $test->callback;
 
 		// setup
 		$this->before_run();
@@ -485,30 +492,30 @@ abstract class fu
 		$this->after_run();
 		$ts_teardown = microtime(true);
 
-		$this->current_test_name = null;
-		$this->tests[$name]->run = true;
-		$this->tests[$name]->timing = array(
+		$this->current_test = null;
+		$test->run = true;
+		$test->timing = array(
 			'setup' => $ts_setup - $ts_start,
 			'run' => $ts_run - $ts_setup,
 			'teardown' => $ts_teardown - $ts_run,
 			'total' => $ts_teardown - $ts_start,
 		);
 
-		if (count($this->tests[$name]->errors) > 0) {
+		if (count($test->errors) > 0) {
 
-			$this->tests[$name]->pass = false;
+			$test->pass = false;
 
 		} else {
 
-			$assert_counts = $this->assert_counts($name);
+			$assert_counts = $this->assert_counts($test);
 			if ($assert_counts['pass'] === $assert_counts['total']) {
-				$this->tests[$name]->pass = true;
+				$test->pass = true;
 			} else {
-				$this->tests[$name]->pass = false;
+				$test->pass = false;
 			}
 		}
 
-		$this->debug_out("Timing: " . json_encode($this->tests[$name]->timing)); // json is easy to read
+		$this->debug_out("Timing: " . json_encode($test->timing)); // json is easy to read
 	}
 
 	/**
@@ -524,7 +531,7 @@ abstract class fu
 	{
 		foreach ($this->tests as $name => $test) {
 			if (null === $filter || (stripos($name, $filter) !== false)) {
-				$this->run_test($name);
+				$this->run_test($test);
 			}
 		}
 	}
@@ -560,23 +567,23 @@ abstract class fu
 	 *
 	 * If called without passing a test name, retrieves info about all assertions. Else just for the named test
 	 *
-	 * @param string $test_name optional the name of the test about which to get assertion stats
+	 * @param Test|null $test a specific test; or null to count across all tests
+	 *
 	 * @return array has keys 'total', 'pass', 'fail', 'expected_fail'
 	 */
-	protected function assert_counts($test_name = null)
+	protected function assert_counts(Test $test=null)
 	{
 		$total = 0;
 		$pass = 0;
 		$fail = 0;
 		$expected_fail = 0;
 
-		$names = $test_name === null
-			? array_keys($this->tests)
-			: array($test_name);
+		$tests = $test === null
+			? array($test)
+			: $this->tests;
 
-		foreach ($names as $name) {
-			$test = $this->tests[$name];
-			$rs = $this->test_asserts($test_name, $test->assertions);
+		foreach ($tests as $test) {
+			$rs = $this->test_asserts($test->name, $test->assertions);
 			$total += $rs['total'];
 			$pass += $rs['pass'];
 			$fail += $rs['fail'];
