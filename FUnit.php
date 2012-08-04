@@ -28,6 +28,9 @@ class Test
 	 */
 	public $errors = array();
 
+	/**
+	 * @var Assertion[] list of Assertions performed while running this Test
+	 */
 	public $assertions = array();
 
 	public $timing = array();
@@ -36,6 +39,72 @@ class Test
 	{
 		$this->name = $name;
 		$this->callback = $callback;
+	}
+
+	public function get_assertion_count()
+	{
+		return new AssertionCount($this->assertions);
+	}
+}
+
+/**
+ * This class represents an Assertion performed during a Test.
+ */
+class Assertion
+{
+	public $func_name;
+	public $func_args;
+	public $result;
+	public $msg;
+	public $description;
+	public $expected_fail = false;
+
+	public function __construct($func_name, $func_args, $result, $msg=null, $description=null)
+	{
+		$this->func_name = $func_name;
+		$this->func_args = $func_args;
+		$this->result = $result;
+		$this->msg = $msg;
+		$this->description = $description;
+	}
+}
+
+/**
+ * This class represents a tally of Assertion results
+ */
+class AssertionCount
+{
+	public $total = 0;
+	public $pass = 0;
+	public $fail = 0;
+	public $expected_fail = 0;
+
+	/**
+	 * @param Assertion $assertion
+	 */
+	public function tally(Assertion $assertion)
+	{
+		if ($assertion->result) {
+			$this->pass++;
+		} else {
+			$this->fail++;
+		}
+
+		if ($assertion->expected_fail) {
+			$this->expected_fail++;
+		}
+
+		$this->total++;
+	}
+
+	/**
+	 * @param Assertion[] $assertions list of Assertions to be counted
+	 */
+	public function __construct($assertions)
+	{
+		foreach ($assertions as $assertion) {
+			$this->tally($assertion);
+		}
 	}
 }
 
@@ -391,50 +460,61 @@ abstract class fu
 	 */
 	protected function default_report()
 	{
-		$total_assert_counts = $this->assert_counts();
 		$test_counts = $this->test_counts();
 
 		$this->out("RESULTS:");
 		$this->out("--------------------------------------------");
 
+		$sum_pass = 0;
+		$sum_fail = 0;
+		$sum_expected_fail = 0;
+		$sum_total = 0;
+
 		foreach ($this->tests as $name => $test) {
 
-			$assert_counts = $this->assert_counts($test);
+			$assert_counts = $test->get_assertion_count();
+
+			$sum_pass += $assert_counts->pass;
+			$sum_fail += $assert_counts->fail;
+			$sum_expected_fail += $assert_counts->expected_fail;
+			$sum_total += $assert_counts->total;
+
 			if ($test->pass) {
 				$test_color = 'GREEN';
 			} else {
-				if (($assert_counts['total'] - $assert_counts['expected_fail']) == $assert_counts['pass']) {
+				if (($assert_counts->total - $assert_counts->expected_fail) == $assert_counts->pass) {
 					$test_color = 'YELLOW';
 				} else {
 					$test_color = 'RED';
 				}
 			}
-			$this->out("TEST:" . $this->color(" {$name} ({$assert_counts['pass']}/{$assert_counts['total']}):", $test_color));
+
+			$this->out("TEST:" . $this->color(" {$name} ({$assert_counts->pass}/{$assert_counts->total}):", $test_color));
 
 			foreach ($test->assertions as $assertion) {
-				if ($assertion['expected_fail']) {
+				if ($assertion->expected_fail) {
 					$assert_color = 'YELLOW';
 				} else {
-					$assert_color = $assertion['result'] == $this->pass ? 'GREEN' : 'RED';
+					$assert_color = $assertion->result ? 'GREEN' : 'RED';
 				}
 				$this->out(" * "
-					. $this->color("{$assertion['result']}"
-						. " {$assertion['func_name']}("
+					. $this->color("{$assertion->result}"
+						. " {$assertion->func_name}("
 						// @TODO we should coerce these into strings and output only on fail
 						// . implode(', ', $ass['func_args'])
-						. ") {$assertion['msg']}" . ($assertion['expected_fail'] ? ' (expected)' : ''), $assert_color));
+						. ") {$assertion->msg}" . ($assertion->expected_fail ? ' (expected)' : ''), $assert_color));
 			}
 			if (count($test->errors) > 0) {
 				foreach ($test->errors as $error) {
 					if ($this->debug) {
 						$sep = "\n  -> ";
-						$bt = $sep . implode($sep, $error->backtrace);
+						$source = $sep . implode($sep, $error->backtrace);
 					} else {
-						$bt = "{$error->file}#{$error->line}";
+						$source = "{$error->file}#{$error->line}";
 					}
 					$this->out(
 						' * ' . $this->color(
-							strtoupper($error->type) . ": {$error->msg} in {$bt}",
+							strtoupper($error->type) . ": {$error->msg} in {$source}",
 							'RED')
 					);
 				}
@@ -454,36 +534,14 @@ abstract class fu
 			. $this->color($err_count, $err_color));
 
 		$this->out("ASSERTIONS: "
-			. $this->color("{$total_assert_counts['pass']} pass", 'GREEN') . ", "
-			. $this->color("{$total_assert_counts['fail']} fail", 'RED') . ", "
-			. $this->color("{$total_assert_counts['expected_fail']} expected fail", 'YELLOW') . ", "
-			. $this->color("{$total_assert_counts['total']} total", 'WHITE'));
+			. $this->color("{$sum_pass} pass", 'GREEN') . ", "
+			. $this->color("{$sum_fail} fail", 'RED') . ", "
+			. $this->color("{$sum_expected_fail} expected fail", 'YELLOW') . ", "
+			. $this->color("{$sum_total} total", 'WHITE'));
 
 		$this->out("TESTS: {$test_counts['run']} run, "
 			. $this->color("{$test_counts['pass']} pass", 'GREEN') . ", "
 			. $this->color("{$test_counts['total']} total", 'WHITE'));
-	}
-
-	/**
-	 * add the result of an assertion
-	 *
-	 * @param string $func_name the name of the assertion function
-	 * @param array $func_args the arguments for the assertion. Really just the $a (actual) and $b (expected)
-	 * @param mixed $result this is expected to be truthy or falsy, and is converted into $this->pass or $this->fail
-	 * @param string $msg optional message describing the assertion
-	 * @param bool $expected_fail optional expectation of the assertion to fail
-	 *
-	 * @note Normally you would not call this method directly
-	 * @see ok()
-	 * @see equal()
-	 * @see not_equal()
-	 * @see strict_equal()
-	 * @see not_strict_equal()
-	 */
-	protected function add_assertion_result($func_name, $func_args, $result, $msg = null, $expected_fail = false)
-	{
-		$result = ($result) ? $this->pass : $this->fail;
-		$this->current_test->assertions[] = compact('func_name', 'func_args', 'result', 'msg', 'expected_fail');
 	}
 
 	/**
@@ -536,17 +594,10 @@ abstract class fu
 		);
 
 		if (count($test->errors) > 0) {
-
 			$test->pass = false;
-
 		} else {
-
-			$assert_counts = $this->assert_counts($test);
-			if ($assert_counts['pass'] === $assert_counts['total']) {
-				$test->pass = true;
-			} else {
-				$test->pass = false;
-			}
+			$count = $test->get_assertion_count();
+			$test->pass = $count->pass === $count->total;
 		}
 
 		$this->debug_out("Timing: " . json_encode($test->timing)); // json is easy to read
@@ -570,64 +621,6 @@ abstract class fu
 		}
 	}
 
-	private function test_asserts($test_name, $assertions)
-	{
-
-		$total = 0;
-		$pass = 0;
-		$fail = 0;
-		$expected_fail = 0;
-
-		foreach ($assertions as $ass) {
-			if ($ass['result'] === $this->pass) {
-				$pass++;
-			} elseif ($ass['result'] === $this->fail) {
-				$fail++;
-				if ($ass['expected_fail']) {
-					$expected_fail++;
-				}
-			}
-			$total++;
-		}
-
-		return compact('total', 'pass', 'fail', 'expected_fail');
-
-	}
-
-	/**
-	 * Normally you would not call this method directly
-	 *
-	 * Retrieves stats about assertions run. returns an array with the keys 'total', 'pass', 'fail', 'expected_fail'
-	 *
-	 * If called without passing a test name, retrieves info about all assertions. Else just for the named test
-	 *
-	 * @param Test|null $test a specific test; or null to count across all tests
-	 *
-	 * @return array has keys 'total', 'pass', 'fail', 'expected_fail'
-	 */
-	protected function assert_counts(Test $test=null)
-	{
-		$total = 0;
-		$pass = 0;
-		$fail = 0;
-		$expected_fail = 0;
-
-		$tests = $test === null
-			? array($test)
-			: $this->tests;
-
-		foreach ($tests as $test) {
-			$rs = $this->test_asserts($test->name, $test->assertions);
-			$total += $rs['total'];
-			$pass += $rs['pass'];
-			$fail += $rs['fail'];
-			$expected_fail += $rs['expected_fail'];
-		}
-
-		return compact('total', 'pass', 'fail', 'expected_fail');
-
-	}
-
 	/**
 	 * Normally you would not call this method directly
 	 *
@@ -641,7 +634,7 @@ abstract class fu
 		$run = 0;
 		$pass = 0;
 
-		foreach ($this->tests as $test_name => $test) {
+		foreach ($this->tests as $test) {
 			if ($test->pass) {
 				$pass++;
 			}
@@ -696,12 +689,13 @@ abstract class fu
 	 */
 	public function equal($a, $b, $msg = null)
 	{
-		$rs = ($a == $b);
-		$this->add_assertion_result(__FUNCTION__, array($a, $b), $rs, $msg);
-		if (!$rs) {
-			$this->debug_out('Expected: ' . var_export($a, true) . ' and ' . var_export($b, true) . ' to be loosely equal');
-		}
-		return $rs;
+		$this->current_test->assertions[] = new Assertion(
+			__FUNCTION__,
+			func_get_args(),
+			($a == $b),
+			$msg,
+			'Expected: ' . var_export($a, true) . ' and ' . var_export($b, true) . ' to be loosely equal'
+		);
 	}
 
 	/**
@@ -713,12 +707,13 @@ abstract class fu
 	 */
 	public function not_equal($a, $b, $msg = null)
 	{
-		$rs = ($a != $b);
-		$this->add_assertion_result(__FUNCTION__, array($a, $b), $rs, $msg);
-		if (!$rs) {
-			$this->debug_out('Expected: ' . var_export($a, true) . ' and ' . var_export($b, true) . ' to be unequal');
-		}
-		return $rs;
+		$this->current_test->assertions[] = new Assertion(
+			__FUNCTION__,
+			array($a, $b),
+			($a != $b),
+			$msg,
+			'Expected: ' . var_export($a, true) . ' and ' . var_export($b, true) . ' to be unequal'
+		);
 	}
 
 	/**
@@ -730,12 +725,13 @@ abstract class fu
 	 */
 	public function strict_equal($a, $b, $msg = null)
 	{
-		$rs = ($a === $b);
-		$this->add_assertion_result(__FUNCTION__, array($a, $b), $rs, $msg);
-		if (!$rs) {
-			$this->debug_out('Expected: ' . var_export($a, true) . ' and ' . var_export($b, true) . ' to be strictly equal');
-		}
-		return $rs;
+		$this->current_test->assertions[] = new Assertion(
+			__FUNCTION__,
+			array($a, $b),
+			($a === $b),
+			$msg,
+			'Expected: ' . var_export($a, true) . ' and ' . var_export($b, true) . ' to be strictly equal'
+		);
 	}
 
 	/**
@@ -747,12 +743,13 @@ abstract class fu
 	 */
 	public function not_strict_equal($a, $b, $msg = null)
 	{
-		$rs = ($a !== $b);
-		$this->add_assertion_result(__FUNCTION__, array($a, $b), $rs, $msg);
-		if (!$rs) {
-			$this->debug_out('Expected: ' . var_export($a, true) . ' and ' . var_export($b, true) . ' to be strictly unequal');
-		}
-		return $rs;
+		$this->current_test->assertions[] = new Assertion(
+			__FUNCTION__,
+			array($a, $b),
+			($a !== $b),
+			$msg,
+			'Expected: ' . var_export($a, true) . ' and ' . var_export($b, true) . ' to be strictly unequal'
+		);
 	}
 
 	/**
@@ -763,12 +760,13 @@ abstract class fu
 	 */
 	public function ok($a, $msg = null)
 	{
-		$rs = (bool)$a;
-		$this->add_assertion_result(__FUNCTION__, array($a), $rs, $msg);
-		if (!$rs) {
-			$this->debug_out('Expected: ' . var_export($a, true) . ' to be truthy');
-		}
-		return $rs;
+		$this->current_test->assertions[] = new Assertion(
+			__FUNCTION__,
+			array($a),
+			(bool)$a,
+			$msg,
+			'Expected: ' . var_export($a, true) . ' to be truthy'
+		);
 	}
 
 	/**
@@ -781,19 +779,21 @@ abstract class fu
 	 */
 	public function has($needle, $haystack, $msg = null)
 	{
+		$result = false;
+
 		if (is_object($haystack)) {
-			$rs = (bool)property_exists($haystack, $needle);
+			$result = property_exists($haystack, $needle);
 		} elseif (is_array($haystack)) {
-			$rs = (bool)array_key_exists($needle, $haystack);
-		} else {
-			$rs = false;
+			$result = array_key_exists($needle, $haystack);
 		}
 
-		$this->add_assertion_result(__FUNCTION__, array($needle, $haystack), $rs, $msg);
-		if (!$rs) {
-			$this->debug_out('Expected: ' . var_export($haystack, true) . ' to contain ' . var_export($needle, true));
-		}
-		return $rs;
+		$this->current_test->assertions[] = new Assertion(
+			__FUNCTION__,
+			array($needle, $haystack),
+			$result,
+			$msg,
+			'Expected: ' . var_export($haystack, true) . ' to contain ' . var_export($needle, true)
+		);
 	}
 
 	/**
@@ -804,8 +804,16 @@ abstract class fu
 	 */
 	public function fail($msg = null, $expected = false)
 	{
-		$this->add_assertion_result(__FUNCTION__, array(), false, $msg, $expected);
-		return false;
+		$assertion = new Assertion(
+			__FUNCTION__,
+			array(),
+			false,
+			$msg
+		);
+
+		$assertion->expected_fail = $expected;
+
+		$this->current_test->assertions[] = $assertion;
 	}
 
 	/**
@@ -816,7 +824,7 @@ abstract class fu
 	 */
 	public function expect_fail($msg = null)
 	{
-		return $this->fail($msg, true);
+		$this->fail($msg, true);
 	}
 
 	/**
