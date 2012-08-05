@@ -298,23 +298,6 @@ abstract class fu
 	}
 
 	/**
-	 * Called in {@see run_test()} before running a test.
-	 */
-	private function before_run()
-	{
-		$this->setup();
-	}
-
-	/**
-	 * Called in {@see run_test()} after running a test.
-	 */
-	private function after_run()
-	{
-		$this->teardown();
-		$this->reset_fixtures();
-	}
-
-	/**
 	 * Returns a list of the Tests implemented by the concrete test-class.
 	 *
 	 * @return Test[] list of detected Tests
@@ -569,15 +552,13 @@ abstract class fu
 		$name = $test->name;
 
 		$this->out("Running test '{$name}...'");
-		$ts_start = microtime(true);
 
-		// to associate the assertions in a test with the test,
-		// we use this var to avoid the need to for globals
 		$this->current_test = $test;
 
 		// setup
-		$this->before_run();
-		$ts_setup = microtime(true);
+		$time_started = microtime(true);
+		$this->setup();
+		$time_after_setup = microtime(true);
 
 		try {
 			$this->{$test->method}();
@@ -585,19 +566,20 @@ abstract class fu
 			$this->exception_handler($e);
 		}
 
-		$ts_run = microtime(true);
+		$time_after_run = microtime(true);
 
 		// teardown
-		$this->after_run();
-		$ts_teardown = microtime(true);
+		$this->teardown();
+		$this->reset_fixtures();
+		$time_after_teardown = microtime(true);
 
 		$this->current_test = null;
 		$test->run = true;
 		$test->timing = array(
-			'setup' => $ts_setup - $ts_start,
-			'run' => $ts_run - $ts_setup,
-			'teardown' => $ts_teardown - $ts_run,
-			'total' => $ts_teardown - $ts_start,
+			'setup' => $time_after_setup - $time_started,
+			'run' => $time_after_run - $time_after_setup,
+			'teardown' => $time_after_teardown - $time_after_run,
+			'total' => $time_after_teardown - $time_started,
 		);
 
 		if (count($test->errors) > 0) {
