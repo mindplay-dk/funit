@@ -315,7 +315,7 @@ abstract class fu
 	}
 
 	/**
-	 * Returns a list of the test-methods (and display-names) of the concrete test-class.
+	 * Returns a list of the Tests implemented by the concrete test-class.
 	 *
 	 * @return Test[] list of detected Tests
 	 */
@@ -350,12 +350,9 @@ abstract class fu
 	}
 
 	/**
-	 * custom exception handler, massaging the format into the same we use for Errors
-	 *
-	 * We don't actually use this as a proper exception handler, so we can continue execution.
+	 * Custom exception handler - records the exception as an Error instance.
 	 *
 	 * @param Exception $e
-	 * @return array ['datetime', 'num', 'type', 'msg', 'file', 'line']
 	 * @see run_test()
 	 */
 	protected function exception_handler($e)
@@ -375,8 +372,8 @@ abstract class fu
 
 
 	/**
-	 * custom error handler to catch errors triggered while running tests. this is
-	 * registered at the start of $this->run() and deregistered at stop
+	 * Custom error handler - records the error-information as an Error instance.
+	 * This is registered at the start of $this->run() and deregistered at stop.
 	 *
 	 * @see run()
 	 * @see Test::$errors
@@ -397,9 +394,7 @@ abstract class fu
 	}
 
 	/**
-	 * Format a line for printing. Detects
-	 * if the script is being run from the command
-	 * line or from a browser; also detects TTY for color (so pipes work).
+	 * Color-code a line for output on the terminal or as HTML.
 	 *
 	 * Colouring code loosely based on
 	 * http://www.zend.com//code/codex.php?ozid=1112&single=1
@@ -414,7 +409,7 @@ abstract class fu
 	 * @see $color
 	 * @see $console_colors
 	 */
-	protected function color($text, $color = 'DEFAULT')
+	protected function color($text, $color)
 	{
 		if ($this->console) {
 			if ($this->color && $this->console_colors) {
@@ -615,9 +610,9 @@ abstract class fu
 	}
 
 	/**
-	 * Normally you would not call this method directly
-	 *
 	 * Run all of the registered tests
+	 *
+	 * @note Normally you would not call this method directly
 	 *
 	 * @param string $filter optional test case name filter
 	 * @see run()
@@ -633,9 +628,9 @@ abstract class fu
 	}
 
 	/**
-	 * Normally you would not call this method directly
-	 *
 	 * Retrieves stats about tests run. returns an array with the keys 'total', 'pass', 'run'
+	 *
+	 * @note Normally you would not call this method directly
 	 *
 	 * @return array has keys 'total', 'pass', 'run'
 	 */
