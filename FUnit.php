@@ -362,8 +362,8 @@ abstract class fu
 			0,
 			get_class($e),
 			$e->getMessage(),
-			$e->getLine(),
-			$e->getFile()
+			$e->getFile(),
+			$e->getLine()
 		);
 
 		$error->add_backtrace($e->getTrace());
@@ -385,8 +385,8 @@ abstract class fu
 			$num,
 			$this->error_labels[$num],
 			$msg,
-			$line,
-			$file
+			$file,
+			$line
 		);
 
 		$error->add_backtrace(debug_backtrace());
