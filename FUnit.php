@@ -255,7 +255,6 @@ abstract class fu
 	 * @var array map where color-name => color-code
 	 */
 	protected $term_colors = array(
-		'BLACK' => "30",
 		'RED' => "31",
 		'GREEN' => "32",
 		'YELLOW' => "33",
@@ -263,7 +262,6 @@ abstract class fu
 		'MAGENTA' => "35",
 		'CYAN' => "36",
 		'WHITE' => "37",
-		'DEFAULT' => "00",
 	);
 
 	public function __construct()
@@ -276,7 +274,7 @@ abstract class fu
 
 		$this->console = PHP_SAPI === 'cli';
 
-		// detecte support for colors on the console:
+		// detect support for colors on the console:
 
 		$this->console_colors = function_exists('posix_isatty') && posix_isatty(STDOUT);
 	}
@@ -405,7 +403,7 @@ abstract class fu
 		} else {
 			if ($this->color) {
 				$color = strtolower($color);
-				return "<span style=\"color: $color;\">" . htmlspecialchars($text) . "</span>";
+				return "<span style=\"color:$color;\">" . htmlspecialchars($text) . "</span>";
 			} else {
 				return htmlspecialchars($text);
 			}
