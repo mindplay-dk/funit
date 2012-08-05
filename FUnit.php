@@ -284,7 +284,7 @@ abstract class fu
 	/**
 	 * Override this to perform common initialization before running a test.
 	 */
-	public function setup()
+	protected function setup()
 	{
 		// empty default implementation
 	}
@@ -292,7 +292,7 @@ abstract class fu
 	/**
 	 * Override this to perform clean-up after running a test.
 	 */
-	public function teardown()
+	protected function teardown()
 	{
 		// empty default implementation
 	}
@@ -327,20 +327,21 @@ abstract class fu
 		 */
 
 		$class = new ReflectionClass(get_class($this));
+		$self = new ReflectionClass(__CLASS__);
 
 		$tests = array();
 
 		foreach ($class->getMethods() as $method) {
+			if ($self->hasMethod($method->name)) {
+				continue; // skip methods on this class
+			}
+
 			if ($method->getDeclaringClass()->isAbstract()) {
 				continue; // skip methods on abstract classes
 			}
 
 			if (!$method->isPublic()) {
 				continue; // skip non-public methods
-			}
-
-			if (in_array($method->name, array('setup', 'teardown'))) {
-				continue; // skip setup/teardown methods
 			}
 
 			$tests[] = new Test(strtr($method->name, '_', ' '), $method->name);

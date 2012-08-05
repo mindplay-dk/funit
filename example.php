@@ -6,7 +6,7 @@ require __DIR__ . '/FUnit.php';
 
 class ExampleTest extends fu
 {
-	public function setup()
+	protected function setup()
 	{
 		$this->fixture('foobar', array('foo' => 'bar'));
 	}
