@@ -177,15 +177,28 @@ class Error
 	}
 }
 
-abstract class fu
+/**
+ * This base-class defines the interface and properties of a Report-class
+ */
+abstract class Report
 {
-	const VERSION = '0.3';
-
 	/**
 	 * @var bool toggle verbose report output (with backtraces)
 	 */
 	public $debug = false;
 
+	abstract public function render_header(fu $fu);
+	abstract public function render_message($msg, $verbose=false);
+	abstract public function render_body(fu $fu);
+	abstract public function render_footer(fu $fu);
+}
+
+/**
+ * This class implements the default Console-style report, which can be
+ * run either from a browser or from a command-line console.
+ */
+class ConsoleReport extends Report
+{
 	/**
 	 * @var string color for debug-messages
 	 * @see debug_out()
@@ -193,14 +206,221 @@ abstract class fu
 	public $debug_color = 'BLUE';
 
 	/**
-	 * @var string displayed when a test passes
+	 * @var bool toggle console-based output (vs HTML output)
+	 * @see __construct()
 	 */
-	public $pass = 'PASS';
+	public $console = false;
 
 	/**
-	 * @var string displayed when a test fails
+	 * @var bool toggle colors in rendered report
 	 */
-	public $fail = 'FAIL';
+	public $use_color = true;
+
+	/**
+	 * @var bool true if the console supports colors (POSIX TTY)
+	 */
+	private $supports_colors = false;
+
+	/**
+	 * Map of terminal colors.
+	 *
+	 * @var array map where color-name => color-code
+	 */
+	protected $term_colors = array(
+		'RED' => "31",
+		'GREEN' => "32",
+		'YELLOW' => "33",
+		'BLUE' => "34",
+		'MAGENTA' => "35",
+		'CYAN' => "36",
+		'WHITE' => "37",
+	);
+
+	public function __construct()
+	{
+		// detect console vs HTML mode:
+		$this->console = PHP_SAPI === 'cli';
+
+		// detect support for colors on the console:
+		$this->supports_colors = function_exists('posix_isatty') && posix_isatty(STDOUT);
+	}
+
+	public function render_header(fu $fu)
+	{
+		$this->out("UNIT TEST: " . $fu->title);
+		$this->out("");
+	}
+
+	public function render_message($str, $verbose=false)
+	{
+		if ($verbose && $this->debug) {
+			$this->out($this->color($str, $this->debug_color));
+		} else {
+			$this->out($str);
+		}
+	}
+
+	public function render_body(fu $fu)
+	{
+		$test_counts = $fu->test_counts();
+		$err_count = 0;
+
+		$this->out("RESULTS:");
+		$this->out("--------------------------------------------");
+
+		$sum_pass = 0;
+		$sum_fail = 0;
+		$sum_expected_fail = 0;
+		$sum_total = 0;
+
+		foreach ($fu->tests as $test) {
+
+			$assert_counts = $test->get_assertion_count();
+
+			$sum_pass += $assert_counts->pass;
+			$sum_fail += $assert_counts->fail;
+			$sum_expected_fail += $assert_counts->expected_fail;
+			$sum_total += $assert_counts->total;
+
+			if ($test->pass) {
+				$test_color = 'GREEN';
+			} else {
+				if (($assert_counts->total - $assert_counts->expected_fail) == $assert_counts->pass) {
+					$test_color = 'YELLOW';
+				} else {
+					$test_color = 'RED';
+				}
+			}
+
+			$this->out("TEST: " . $this->color("{$test->name} ({$assert_counts->pass}/{$assert_counts->total}):", $test_color));
+
+			foreach ($test->assertions as $assertion) {
+				if ($assertion->expected_fail) {
+					$assert_color = 'YELLOW';
+				} else {
+					$assert_color = $assertion->result ? 'GREEN' : 'RED';
+				}
+
+				$status = $test->pass ? 'PASS' : 'FAIL';
+
+				$args = ($assertion->result === false) || ($this->debug === true)
+					? $assertion->format_args()
+					: '...';
+
+				$expected = ($assertion->expected_fail ? ' (expected)' : '');
+
+				$this->out(" * {$status}: "
+					. $this->color(" {$assertion->func_name}({$args}) {$assertion->msg}{$expected}", $assert_color));
+			}
+
+			if (count($test->errors) > 0) {
+				foreach ($test->errors as $error) {
+					if ($this->debug) {
+						$sep = "\n  -> ";
+						$source = $sep . implode($sep, $error->backtrace);
+					} else {
+						$source = "{$error->file}#{$error->line}";
+					}
+					$this->out(
+						' * ' . $this->color(
+							strtoupper($error->type) . ": {$error->msg} in {$source}",
+							'RED')
+					);
+				}
+			}
+
+			$this->out("");
+
+			$err_count += count($test->errors);
+		}
+
+		$err_color = ($err_count > 0)
+			? 'RED'
+			: 'WHITE';
+
+		$this->out("ERRORS/EXCEPTIONS: "
+			. $this->color($err_count, $err_color));
+
+		$this->out("ASSERTIONS: "
+			. $this->color("{$sum_pass} pass", 'GREEN') . ", "
+			. $this->color("{$sum_fail} fail", 'RED') . ", "
+			. $this->color("{$sum_expected_fail} expected fail", 'YELLOW') . ", "
+			. $this->color("{$sum_total} total", 'WHITE'));
+
+		$this->out("TESTS: {$test_counts['run']} run, "
+			. $this->color("{$test_counts['pass']} pass", 'GREEN') . ", "
+			. $this->color("{$test_counts['total']} total", 'WHITE'));
+	}
+
+	public function render_footer(fu $fu)
+	{}
+
+	/**
+	 * Output a string
+	 *
+	 * @param $str string to output
+	 */
+	protected function out($str)
+	{
+		if ($this->console) {
+			echo $str . "\n";
+		} else {
+			echo "<tt>" . nl2br($str) . "</tt><br/>";
+		}
+	}
+
+	/**
+	 * Output a debug message - only if {@see $debug} is set to true.
+	 *
+	 * @param $str string message to output
+	 */
+	protected function debug_out($str)
+	{
+		if (!$this->debug) {
+			return;
+		}
+		$this->out($this->color($str, $this->debug_color));
+	}
+
+	/**
+	 * Color-code a line for output on the terminal or as HTML.
+	 *
+	 * Colouring code loosely based on
+	 * http://www.zend.com//code/codex.php?ozid=1112&single=1
+	 *
+	 * @param string $text the text to color-code
+	 * @param string $color default is 'DEFAULT'
+	 *
+	 * @return string color-coded text (in terminal escape-codes) or HTML tags
+	 *
+	 * @see $term_colors
+	 * @see $console
+	 * @see $color
+	 * @see $console_colors
+	 */
+	protected function color($text, $color)
+	{
+		if ($this->console) {
+			if ($this->use_color && $this->supports_colors) {
+				$color = $this->term_colors[$color];
+				return chr(27) . "[0;{$color}m{$text}" . chr(27) . "[00m";
+			} else {
+				return $text; // colors disabled, or not supported on this console
+			}
+		} else {
+			if ($this->use_color) {
+				$color = strtolower($color);
+				return "<span style=\"color:$color;\">" . htmlspecialchars($text) . "</span>";
+			} else {
+				return htmlspecialchars($text);
+			}
+		}
+	}
+}
+
+abstract class fu
+{
+	const VERSION = '0.3';
 
 	/**
 	 * @var array map where error-code => display-name
@@ -222,20 +442,10 @@ abstract class fu
 	);
 
 	/**
-	 * @var bool toggle console-based output (vs HTML output)
-	 * @see __construct()
+	 * @var string a title for the unit-test
+	 * @not defaults to the class-name of the concrete test-class
 	 */
-	public $console = false;
-
-	/**
-	 * @var bool toggle colors in rendered report
-	 */
-	public $color = true;
-
-	/**
-	 * @var bool true if the console supports colors (POSIX TTY)
-	 */
-	private $console_colors = false;
+	public $title;
 
 	/**
 	 * @var Test[] individual tests configured for this test-suite.
@@ -243,40 +453,27 @@ abstract class fu
 	public $tests = array();
 
 	/**
-	 * @var Test
+	 * @var Report the Report to render on run
+	 */
+	public $report = null;
+
+	/**
+	 * @var Test the Test that is currently being run
 	 */
 	public $current_test = null;
 
 	public $fixtures = array();
 
-	/**
-	 * Map of terminal colors.
-	 *
-	 * @var array map where color-name => color-code
-	 */
-	protected $term_colors = array(
-		'RED' => "31",
-		'GREEN' => "32",
-		'YELLOW' => "33",
-		'BLUE' => "34",
-		'MAGENTA' => "35",
-		'CYAN' => "36",
-		'WHITE' => "37",
-	);
-
 	public function __construct()
 	{
-		// configure tests:
+		// configure test title:
+		$this->title = get_class($this);
 
+		// configure tests:
 		$this->tests = $this->get_tests();
 
-		// detect console vs HTML mode:
-
-		$this->console = PHP_SAPI === 'cli';
-
-		// detect support for colors on the console:
-
-		$this->console_colors = function_exists('posix_isatty') && posix_isatty(STDOUT);
+		// configure default report:
+		$this->report = new ConsoleReport();
 	}
 
 	/**
@@ -376,163 +573,27 @@ abstract class fu
 	}
 
 	/**
-	 * Color-code a line for output on the terminal or as HTML.
-	 *
-	 * Colouring code loosely based on
-	 * http://www.zend.com//code/codex.php?ozid=1112&single=1
-	 *
-	 * @param string $text the text to color-code
-	 * @param string $color default is 'DEFAULT'
-	 *
-	 * @return string color-coded text (in terminal escape-codes) or HTML tags
-	 *
-	 * @see $term_colors
-	 * @see $console
-	 * @see $color
-	 * @see $console_colors
-	 */
-	protected function color($text, $color)
-	{
-		if ($this->console) {
-			if ($this->color && $this->console_colors) {
-				$color = $this->term_colors[$color];
-				return chr(27) . "[0;{$color}m{$text}" . chr(27) . "[00m";
-			} else {
-				return $text; // colors disabled, or not supported on this console
-			}
-		} else {
-			if ($this->color) {
-				$color = strtolower($color);
-				return "<span style=\"color:$color;\">" . htmlspecialchars($text) . "</span>";
-			} else {
-				return htmlspecialchars($text);
-			}
-		}
-	}
-
-	/**
 	 * Output a string
 	 *
-	 * @param $str string to output
+	 * @param $str string message to output
 	 */
 	protected function out($str)
 	{
-		if ($this->console) {
-			echo $str . "\n";
-		} else {
-			echo "<tt>" . nl2br($str) . "</tt><br/>";
+		if ($this->report) {
+			$this->report->render_message($str);
 		}
 	}
 
 	/**
-	 * Output a debug message - only if {@see $debug} is set to true.
+	 * Output a debug message .
 	 *
-	 * @param $str debug message to output
+	 * @param $str string debug message to output
 	 */
 	protected function debug_out($str)
 	{
-		if (!$this->debug) {
-			return;
+		if ($this->report) {
+			$this->report->render_message($str, true);
 		}
-		$this->out($this->color($str, $this->debug_color));
-	}
-
-	/**
-	 * Output a report as text
-	 *
-	 * Normally you would not call this method directly
-	 *
-	 * @see run()
-	 */
-	protected function default_report()
-	{
-		$test_counts = $this->test_counts();
-
-		$this->out("RESULTS:");
-		$this->out("--------------------------------------------");
-
-		$sum_pass = 0;
-		$sum_fail = 0;
-		$sum_expected_fail = 0;
-		$sum_total = 0;
-
-		foreach ($this->tests as $test) {
-
-			$assert_counts = $test->get_assertion_count();
-
-			$sum_pass += $assert_counts->pass;
-			$sum_fail += $assert_counts->fail;
-			$sum_expected_fail += $assert_counts->expected_fail;
-			$sum_total += $assert_counts->total;
-
-			if ($test->pass) {
-				$test_color = 'GREEN';
-			} else {
-				if (($assert_counts->total - $assert_counts->expected_fail) == $assert_counts->pass) {
-					$test_color = 'YELLOW';
-				} else {
-					$test_color = 'RED';
-				}
-			}
-
-			$this->out("TEST: " . $this->color("{$test->name} ({$assert_counts->pass}/{$assert_counts->total}):", $test_color));
-
-			foreach ($test->assertions as $assertion) {
-				if ($assertion->expected_fail) {
-					$assert_color = 'YELLOW';
-				} else {
-					$assert_color = $assertion->result ? 'GREEN' : 'RED';
-				}
-
-				$status = $test->pass ? $this->pass : $this->fail;
-
-				$args = ($assertion->result === false) || ($this->debug === true)
-					? $assertion->format_args()
-					: '...';
-
-				$expected = ($assertion->expected_fail ? ' (expected)' : '');
-
-				$this->out(" * {$status}: "
-					. $this->color(" {$assertion->func_name}({$args}) {$assertion->msg}{$expected}", $assert_color));
-			}
-			if (count($test->errors) > 0) {
-				foreach ($test->errors as $error) {
-					if ($this->debug) {
-						$sep = "\n  -> ";
-						$source = $sep . implode($sep, $error->backtrace);
-					} else {
-						$source = "{$error->file}#{$error->line}";
-					}
-					$this->out(
-						' * ' . $this->color(
-							strtoupper($error->type) . ": {$error->msg} in {$source}",
-							'RED')
-					);
-				}
-			}
-
-			$this->out("");
-		}
-
-
-		$err_count = count($test->errors);
-
-		$err_color = (count($test->errors) > 0)
-			? 'RED'
-			: 'WHITE';
-
-		$this->out("ERRORS/EXCEPTIONS: "
-			. $this->color($err_count, $err_color));
-
-		$this->out("ASSERTIONS: "
-			. $this->color("{$sum_pass} pass", 'GREEN') . ", "
-			. $this->color("{$sum_fail} fail", 'RED') . ", "
-			. $this->color("{$sum_expected_fail} expected fail", 'YELLOW') . ", "
-			. $this->color("{$sum_total} total", 'WHITE'));
-
-		$this->out("TESTS: {$test_counts['run']} run, "
-			. $this->color("{$test_counts['pass']} pass", 'GREEN') . ", "
-			. $this->color("{$test_counts['total']} total", 'WHITE'));
 	}
 
 	/**
@@ -547,17 +608,16 @@ abstract class fu
 	 */
 	protected function run_test(Test $test)
 	{
-		$name = $test->name;
-
-		$this->out("Running test '{$name}...'");
+		$this->out("Running test '{$test->name}...'");
 
 		$this->current_test = $test;
 
-		// setup
+		// setup:
 		$time_started = microtime(true);
 		$this->setup();
 		$time_after_setup = microtime(true);
 
+		// run test:
 		try {
 			$this->{$test->method}();
 		} catch (Exception $e) {
@@ -566,7 +626,7 @@ abstract class fu
 
 		$time_after_run = microtime(true);
 
-		// teardown
+		// clean up:
 		$this->teardown();
 		$this->reset_fixtures();
 		$time_after_teardown = microtime(true);
@@ -609,13 +669,45 @@ abstract class fu
 	}
 
 	/**
+	 * Run the registered tests, and output a report
+	 *
+	 * @param boolean $report whether or not to output a report after tests run. Default true.
+	 * @param string $filter optional test case name filter
+	 * @see run_tests()
+	 */
+	public function run($report = true, $filter = null)
+	{
+		// render report header:
+		if ($this->report) {
+			$this->report->render_header($this);
+		}
+
+		// set handlers:
+		$old_error_handler = set_error_handler(array($this, 'error_handler'));
+
+		// run tests:
+		$this->run_tests($filter);
+
+		// restore handlers:
+		if ($old_error_handler) {
+			set_error_handler($old_error_handler);
+		}
+
+		// render report:
+		if ($this->report) {
+			$this->report->render_body($this);
+			$this->report->render_footer($this);
+		}
+	}
+
+	/**
 	 * Retrieves stats about tests run. returns an array with the keys 'total', 'pass', 'run'
 	 *
 	 * @note Normally you would not call this method directly
 	 *
 	 * @return array has keys 'total', 'pass', 'run'
 	 */
-	protected function test_counts()
+	public function test_counts()
 	{
 		$total = count($this->tests);
 		$run = 0;
@@ -812,30 +904,6 @@ abstract class fu
 	public function expect_fail($msg = null)
 	{
 		$this->fail($msg, true);
-	}
-
-	/**
-	 * Run the registered tests, and output a report
-	 *
-	 * @param boolean $report whether or not to output a report after tests run. Default true.
-	 * @param string $filter optional test case name filter
-	 * @see run_tests()
-	 */
-	public function run($report = true, $filter = null)
-	{
-		// set handlers
-		$old_error_handler = set_error_handler(array($this, 'error_handler'));
-
-		$this->run_tests($filter);
-
-		if ($report) {
-			$this->default_report();
-		}
-
-		// restore handlers
-		if ($old_error_handler) {
-			set_error_handler($old_error_handler);
-		}
 	}
 
 	/**
