@@ -188,7 +188,7 @@ abstract class Report
 	public $debug = false;
 
 	abstract public function render_header(fu $fu);
-	abstract public function render_message($msg, $verbose=false);
+	abstract public function render_message($msg, $debug=false);
 	abstract public function render_body(fu $fu);
 	abstract public function render_footer(fu $fu);
 }
@@ -212,7 +212,7 @@ class ConsoleReport extends Report
 	public $console = false;
 
 	/**
-	 * @var bool toggle colors in rendered report
+	 * @var bool enable colors in rendered report
 	 */
 	public $use_color = true;
 
@@ -236,10 +236,25 @@ class ConsoleReport extends Report
 		'WHITE' => "37",
 	);
 
+	/**
+	 * Map of HTML colors.
+	 *
+	 * @var array map where color-name => color-code
+	 */
+	protected $html_colors = array(
+		'RED' => "crimson",
+		'GREEN' => "limegreen",
+		'YELLOW' => "yellow",
+		'BLUE' => "blue",
+		'MAGENTA' => "magenta",
+		'CYAN' => "cyan",
+		'WHITE' => "white",
+	);
+
 	public function __construct()
 	{
 		// detect console vs HTML mode:
-		$this->console = PHP_SAPI === 'cli';
+		$this->console = (PHP_SAPI === 'cli');
 
 		// detect support for colors on the console:
 		$this->supports_colors = function_exists('posix_isatty') && posix_isatty(STDOUT);
@@ -247,14 +262,18 @@ class ConsoleReport extends Report
 
 	public function render_header(fu $fu)
 	{
+		echo "<!DOCTYPE html>\n"
+			. "<head><title>" . $fu->title . " [FUnit]</title></head>"
+			. "<body style=\"background:black; color:white;\">";
+
 		$this->out("UNIT TEST: " . $fu->title);
 		$this->out("");
 	}
 
-	public function render_message($str, $verbose=false)
+	public function render_message($str, $debug=false)
 	{
-		if ($verbose && $this->debug) {
-			$this->out($this->color($str, $this->debug_color));
+		if ($debug) {
+			$this->debug_out($str);
 		} else {
 			$this->out($str);
 		}
@@ -265,7 +284,8 @@ class ConsoleReport extends Report
 		$test_counts = $fu->test_counts();
 		$err_count = 0;
 
-		$this->out("RESULTS:");
+		$this->out("");
+		$this->out("RESULTS");
 		$this->out("--------------------------------------------");
 
 		$sum_pass = 0;
@@ -353,7 +373,9 @@ class ConsoleReport extends Report
 	}
 
 	public function render_footer(fu $fu)
-	{}
+	{
+		echo "</body></html>";
+	}
 
 	/**
 	 * Output a string
@@ -409,7 +431,7 @@ class ConsoleReport extends Report
 			}
 		} else {
 			if ($this->use_color) {
-				$color = strtolower($color);
+				$color = $this->html_colors[$color];
 				return "<span style=\"color:$color;\">" . htmlspecialchars($text) . "</span>";
 			} else {
 				return htmlspecialchars($text);
@@ -497,7 +519,7 @@ abstract class fu
 	 *
 	 * @return Test[] list of detected Tests
 	 */
-	public function get_tests()
+	protected function get_tests()
 	{
 		/**
 		 * @var ReflectionMethod $method
