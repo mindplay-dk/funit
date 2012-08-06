@@ -83,7 +83,7 @@ class Assertion
  */
 class AssertionCount
 {
-	public $total = 0;
+	public $count = 0;
 	public $pass = 0;
 	public $fail = 0;
 	public $expected_fail = 0;
@@ -103,13 +103,13 @@ class AssertionCount
 			$this->expected_fail++;
 		}
 
-		$this->total++;
+		$this->count++;
 	}
 
 	/**
 	 * @param Assertion[] $assertions list of Assertions to be counted
 	 */
-	public function __construct($assertions)
+	public function __construct($assertions=array())
 	{
 		foreach ($assertions as $assertion) {
 			$this->tally($assertion);
@@ -262,9 +262,11 @@ class ConsoleReport extends Report
 
 	public function render_header(fu $fu)
 	{
-		echo "<!DOCTYPE html>\n"
-			. "<head><title>" . $fu->title . " [FUnit]</title></head>"
-			. "<body style=\"background:black; color:white;\">";
+		if (!$this->console) {
+			echo "<!DOCTYPE html>\n"
+				. "<head><title>" . $fu->title . " [FUnit]</title></head>"
+				. "<body style=\"background:black; color:white;\">";
+		}
 
 		$this->out("UNIT TEST: " . $fu->title);
 		$this->out("");
@@ -288,31 +290,21 @@ class ConsoleReport extends Report
 		$this->out("RESULTS");
 		$this->out("--------------------------------------------");
 
-		$sum_pass = 0;
-		$sum_fail = 0;
-		$sum_expected_fail = 0;
-		$sum_total = 0;
-
 		foreach ($fu->tests as $test) {
 
 			$assert_counts = $test->get_assertion_count();
 
-			$sum_pass += $assert_counts->pass;
-			$sum_fail += $assert_counts->fail;
-			$sum_expected_fail += $assert_counts->expected_fail;
-			$sum_total += $assert_counts->total;
-
 			if ($test->pass) {
 				$test_color = 'GREEN';
 			} else {
-				if (($assert_counts->total - $assert_counts->expected_fail) == $assert_counts->pass) {
+				if (($assert_counts->count - $assert_counts->expected_fail) == $assert_counts->pass) {
 					$test_color = 'YELLOW';
 				} else {
 					$test_color = 'RED';
 				}
 			}
 
-			$this->out("TEST: " . $this->color("{$test->name} ({$assert_counts->pass}/{$assert_counts->total}):", $test_color));
+			$this->out("TEST: " . $this->color("{$test->name} ({$assert_counts->pass}/{$assert_counts->count}):", $test_color));
 
 			foreach ($test->assertions as $assertion) {
 				if ($assertion->expected_fail) {
@@ -361,11 +353,13 @@ class ConsoleReport extends Report
 		$this->out("ERRORS/EXCEPTIONS: "
 			. $this->color($err_count, $err_color));
 
+		$totals = $fu->assertion_counts();
+
 		$this->out("ASSERTIONS: "
-			. $this->color("{$sum_pass} pass", 'GREEN') . ", "
-			. $this->color("{$sum_fail} fail", 'RED') . ", "
-			. $this->color("{$sum_expected_fail} expected fail", 'YELLOW') . ", "
-			. $this->color("{$sum_total} total", 'WHITE'));
+			. $this->color("{$totals->pass} pass", 'GREEN') . ", "
+			. $this->color("{$totals->fail} fail", 'RED') . ", "
+			. $this->color("{$totals->expected_fail} expected fail", 'YELLOW') . ", "
+			. $this->color("{$totals->count} total", 'WHITE'));
 
 		$this->out("TESTS: {$test_counts['run']} run, "
 			. $this->color("{$test_counts['pass']} pass", 'GREEN') . ", "
@@ -374,7 +368,9 @@ class ConsoleReport extends Report
 
 	public function render_footer(fu $fu)
 	{
-		echo "</body></html>";
+		if (!$this->console) {
+			echo "</body></html>";
+		}
 	}
 
 	/**
@@ -666,7 +662,7 @@ abstract class fu
 			$test->pass = false;
 		} else {
 			$count = $test->get_assertion_count();
-			$test->pass = $count->pass === $count->total;
+			$test->pass = $count->pass === $count->count;
 		}
 
 		$this->debug_out("Timing: " . json_encode($test->timing)); // json is easy to read
@@ -720,6 +716,25 @@ abstract class fu
 			$this->report->render_body($this);
 			$this->report->render_footer($this);
 		}
+	}
+
+	/**
+	 * @return AssertionCount the sum total of all Assertions across all Tests
+	 */
+	public function assertion_counts()
+	{
+		$total = new AssertionCount();
+
+		foreach ($this->tests as $test) {
+			$assert_counts = $test->get_assertion_count();
+
+			$total->pass += $assert_counts->pass;
+			$total->fail += $assert_counts->fail;
+			$total->expected_fail += $assert_counts->expected_fail;
+			$total->count += $assert_counts->count;
+		}
+
+		return $total;
 	}
 
 	/**
