@@ -283,9 +283,6 @@ class ConsoleReport extends Report
 
 	public function render_body(fu $fu)
 	{
-		$test_counts = $fu->test_counts();
-		$err_count = 0;
-
 		$this->out("");
 		$this->out("RESULTS");
 		$this->out("--------------------------------------------");
@@ -342,9 +339,9 @@ class ConsoleReport extends Report
 			}
 
 			$this->out("");
-
-			$err_count += count($test->errors);
 		}
+
+		$err_count = $fu->error_count();
 
 		$err_color = ($err_count > 0)
 			? 'RED'
@@ -360,6 +357,8 @@ class ConsoleReport extends Report
 			. $this->color("{$totals->fail} fail", 'RED') . ", "
 			. $this->color("{$totals->expected_fail} expected fail", 'YELLOW') . ", "
 			. $this->color("{$totals->count} total", 'WHITE'));
+
+		$test_counts = $fu->test_counts();
 
 		$this->out("TESTS: {$test_counts['run']} run, "
 			. $this->color("{$test_counts['pass']} pass", 'GREEN') . ", "
@@ -760,6 +759,22 @@ abstract class fu
 		}
 
 		return compact('total', 'pass', 'run');
+	}
+
+	/**
+	 * @return int the total number of errors caught in all tests
+	 */
+	public function error_count()
+	{
+		$count = 0;
+
+		foreach ($this->tests as $test) {
+			if (count($test->errors)) {
+				$count++;
+			}
+		}
+
+		return $count;
 	}
 
 	/**
