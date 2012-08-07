@@ -2,6 +2,8 @@
 
 use FUnit\fu;
 
+use FUnit\HtmlReport;
+
 require __DIR__ . '/FUnit.php';
 
 class ExampleTest extends fu
@@ -55,6 +57,7 @@ class ExampleTest extends fu
 }
 
 $test = new ExampleTest();
+$test->report = new HtmlReport();
 
 $test->run();
 
