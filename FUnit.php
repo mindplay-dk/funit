@@ -393,10 +393,9 @@ class ConsoleReport extends Report
 	 */
 	protected function debug_out($str)
 	{
-		if (!$this->debug) {
-			return;
+		if ($this->debug) {
+			$this->out($this->color($str, $this->debug_color));
 		}
-		$this->out($this->color($str, $this->debug_color));
 	}
 
 	/**
@@ -450,7 +449,9 @@ class HtmlReport extends Report
 	public function render_message($str, $debug=false)
 	{
 		if ($debug) {
-			echo "<span>".htmlspecialchars($str)."</span><br/>";
+			if ($this->debug) {
+				echo "<span>".htmlspecialchars($str)."</span><br/>";
+			}
 		} else {
 			echo htmlspecialchars($str)."<br/>";
 		}
@@ -525,13 +526,15 @@ class HtmlReport extends Report
 		foreach ($fu->tests as $test) {
 			$assert_counts = $test->get_assertion_count();
 
-			$status = $test->pass ? 'PASS' : 'FAIL';
+			$status = $test->pass ? '&#10004; PASS' : '&#10008; FAIL';
 
 			echo "<p class=\"toggle\">{$status}: {$test->name} ({$assert_counts->pass} pass, {$assert_counts->fail} fail"
 				. ($assert_counts->expected_fail === 0 ? '' : ", {$assert_counts->expected_fail} expected fail")
 				. ")</p>";
 
-			echo "<ol>\n";
+			$display = $test->pass ? 'none' : 'block';
+
+			echo "<ol style=\"display:{$display}\">\n";
 
 			foreach ($test->assertions as $assertion) {
 				$class = $assertion->expected_fail
