@@ -608,7 +608,8 @@ abstract class fu
 	public $tests = array();
 
 	/**
-	 * @var Report the Report to render on run
+	 * @var Report the Report to render on run()
+	 * @see run()
 	 */
 	public $report = null;
 
@@ -626,9 +627,6 @@ abstract class fu
 
 		// configure tests:
 		$this->tests = $this->get_tests();
-
-		// configure default report:
-		$this->report = new ConsoleReport();
 	}
 
 	/**
@@ -814,7 +812,7 @@ abstract class fu
 	 * @see run()
 	 * @see run_test()
 	 */
-	public function run_tests($filter = null)
+	protected function run_tests($filter = null)
 	{
 		foreach ($this->tests as $name => $test) {
 			if (null === $filter || (stripos($name, $filter) !== false)) {
@@ -826,12 +824,26 @@ abstract class fu
 	/**
 	 * Run the registered tests, and output a report
 	 *
-	 * @param boolean $report whether or not to output a report after tests run. Default true.
+	 * @param bool|Report $report the Report to render; or true to render the default report, false to disable
 	 * @param string $filter optional test case name filter
 	 * @see run_tests()
 	 */
 	public function run($report = true, $filter = null)
 	{
+		// configure Report:
+		if (is_bool($report)) {
+			$_report = null;
+			if ($report===true) {
+				$_report = new ConsoleReport();
+				if (!$_report->console) {
+					$_report = new HtmlReport();
+				}
+			}
+			$this->report = $_report;
+		} else {
+			$this->report = $report;
+		}
+
 		// render report header:
 		if ($this->report) {
 			$this->report->render_header($this);

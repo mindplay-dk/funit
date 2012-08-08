@@ -57,11 +57,7 @@ class ExampleTest extends fu
 }
 
 $test = new ExampleTest();
+
 $test->report = new HtmlReport();
 
 $test->run();
-
-// this should output an empty array, because our fixtures will be gone
-var_dump($test->fixtures);
-
-#echo "<pre>"; var_dump($test->tests);
