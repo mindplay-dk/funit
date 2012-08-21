@@ -517,7 +517,7 @@ class HtmlReport extends Report
 		echo "<p>{$totals->count} assertions: {$totals->pass} passed, {$totals->fail} failed, {$totals->expected_fail} expected failed</p>\n";
 
 		$err_count = $fu->error_count();
-		echo "<p>{$err_count} errors/exceptions</p>\n";
+		echo "<p>{$err_count} errors/exceptions logged</p>\n";
 
 		echo "</div>\n";
 
@@ -919,9 +919,7 @@ abstract class fu
 		$count = 0;
 
 		foreach ($this->tests as $test) {
-			if (count($test->errors)) {
-				$count++;
-			}
+			$count += count($test->errors);
 		}
 
 		return $count;
