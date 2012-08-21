@@ -96,11 +96,11 @@ class AssertionCount
 		if ($assertion->result) {
 			$this->pass++;
 		} else {
-			$this->fail++;
-		}
-
-		if ($assertion->expected_fail) {
-			$this->expected_fail++;
+			if ($assertion->expected_fail) {
+				$this->expected_fail++;
+			} else {
+				$this->fail++;
+			}
 		}
 
 		$this->count++;
@@ -294,7 +294,7 @@ class ConsoleReport extends Report
 			if ($test->pass) {
 				$test_color = 'GREEN';
 			} else {
-				if (($assert_counts->count - $assert_counts->expected_fail) == $assert_counts->pass) {
+				if ($assert_counts->expected_fail > 0) {
 					$test_color = 'YELLOW';
 				} else {
 					$test_color = 'RED';
@@ -353,10 +353,10 @@ class ConsoleReport extends Report
 		$totals = $fu->assertion_counts();
 
 		$this->out("ASSERTIONS: "
+			. $this->color("{$totals->count} total", 'WHITE') . " ("
 			. $this->color("{$totals->pass} pass", 'GREEN') . ", "
 			. $this->color("{$totals->fail} fail", 'RED') . ", "
-			. $this->color("{$totals->expected_fail} expected fail", 'YELLOW') . ", "
-			. $this->color("{$totals->count} total", 'WHITE'));
+			. $this->color("{$totals->expected_fail} expected fail)", 'YELLOW'));
 
 		$test_counts = $fu->test_counts();
 
