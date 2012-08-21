@@ -58,6 +58,7 @@ class Assertion
 	public $msg;
 	public $description;
 	public $expected_fail = false;
+	public $expected_error = null;
 
 	public function __construct($func_name, $func_args, $result, $msg=null, $description=null)
 	{
@@ -128,6 +129,7 @@ class Error
 	public $msg;
 	public $file;
 	public $line;
+	public $expected = false;
 
 	/**
 	 * @var string[] backtrace statements
@@ -324,7 +326,7 @@ class ConsoleReport extends Report
 
 			if (count($test->errors) > 0) {
 				foreach ($test->errors as $error) {
-					if ($this->debug) {
+					if (!$error->expected && $this->debug) {
 						$sep = "\n  -> ";
 						$source = $sep . implode($sep, $error->backtrace);
 					} else {
@@ -332,8 +334,8 @@ class ConsoleReport extends Report
 					}
 					$this->out(
 						' * ' . $this->color(
-							strtoupper($error->type) . ": {$error->msg} in {$source}",
-							'RED')
+							$error->type . ": {$error->msg} in {$source}",
+							$error->expected ? 'CYAN' : 'BLUE')
 					);
 				}
 			}
@@ -486,6 +488,7 @@ class HtmlReport extends Report
 			. "div.report ol li.fail { border-left:25px solid #EE5757; }\n"
 			. "div.report ol li.expected-fail { border-left:25px solid #EEE746; }\n"
 			. "div.report ol li.error { list-style-type:none; border-left:25px solid #2B81AF; }\n"
+			. "div.report ol li.expected-error { list-style-type:none; border-left:25px solid #A9C2CF; }\n"
 			. "</style>\n"
 			. "<script type=\"text/javascript\">\n"
 			. "window.onload = function() {\n"
@@ -551,14 +554,16 @@ class HtmlReport extends Report
 			}
 
 			foreach ($test->errors as $error) {
-				if ($this->debug) {
+				if (!$error->expected && $this->debug) {
 					$sep = "<br/>&rarr; ";
 					$source = $sep . implode($sep, $error->backtrace);
 				} else {
 					$source = "{$error->file}#{$error->line}";
 				}
 
-				echo "<li class=\"error\">" . strtoupper($error->type) . ": {$error->msg} in {$source}</li>";
+				$cls = $error->expected ? 'expected-error' : 'error';
+
+				echo "<li class=\"$cls\">" . $error->type . ": {$error->msg} in {$source}</li>";
 			}
 
 			echo "</ol>\n";
@@ -573,6 +578,23 @@ class HtmlReport extends Report
 	}
 }
 
+/**
+ * This Exception is thrown by the error-handler to interrupt execution for reported errors.
+ *
+ * @see fu::error_handler()
+ */
+class HandledError extends Exception
+{
+	public $errno;
+
+	public function __construct($errno, $message)
+	{
+		parent::__construct($message);
+
+		$this->errno = $errno;
+	}
+}
+
 abstract class fu
 {
 	const VERSION = '0.3';
@@ -580,20 +602,21 @@ abstract class fu
 	/**
 	 * @var array map where error-code => display-name
 	 */
-	public $error_labels = array(
-		E_ERROR => 'Error',
-		E_WARNING => 'Warning',
-		E_PARSE => 'Parser Error',
-		E_NOTICE => 'Notice',
-		E_CORE_ERROR => 'Core Error',
-		E_CORE_WARNING => 'Core Warning',
-		E_COMPILE_ERROR => 'Compile Error',
-		E_COMPILE_WARNING => 'Compile Warning',
-		E_USER_ERROR => 'User Error',
-		E_USER_WARNING => 'User Warning',
-		E_USER_NOTICE => 'User Notice',
-		E_STRICT => 'Runtime Notice',
-		E_RECOVERABLE_ERROR => 'Catchable Fatal Error'
+	public $error_labels = array();
+
+	/**
+	 * @var array list of warning-level error codes after which execution may continue
+	 */
+	public $warnings = array(
+		E_WARNING,
+		E_PARSE,
+		E_NOTICE,
+		E_USER_WARNING,
+		E_USER_NOTICE,
+		E_STRICT,
+		E_RECOVERABLE_ERROR,
+		E_DEPRECATED,
+		E_USER_DEPRECATED,
 	);
 
 	/**
@@ -627,6 +650,16 @@ abstract class fu
 
 		// configure tests:
 		$this->tests = $this->get_tests();
+
+		// configure error-labels:
+		$consts = get_defined_constants(true);
+		$errors = $consts['Core'];
+
+		foreach ($errors as $name => $value) {
+			if (strncmp('E_', $name, 2) === 0) {
+				$this->error_labels[$value] = strtr(substr($name, 2), '_', ' ');
+			}
+		}
 	}
 
 	/**
@@ -687,15 +720,17 @@ abstract class fu
 	 * @param Exception $e
 	 * @see run_test()
 	 */
-	protected function exception_handler($e)
+	protected function exception_handler($e, $expected=false)
 	{
 		$error = new Error(
 			0,
-			get_class($e),
+			'EXCEPTION: '.get_class($e),
 			$e->getMessage(),
 			$e->getFile(),
 			$e->getLine()
 		);
+
+		$error->expected = $expected;
 
 		$error->add_backtrace($e->getTrace());
 
@@ -723,6 +758,11 @@ abstract class fu
 		$error->add_backtrace(debug_backtrace());
 
 		$this->current_test->errors[] = $error;
+
+		if (!in_array($num, $this->warnings, true)) {
+			// for non-warning level errors, interrupt execution by throwing an Exception:
+			throw new HandledError($num, $msg);
+		}
 	}
 
 	/**
@@ -761,7 +801,7 @@ abstract class fu
 	 */
 	protected function run_test(Test $test)
 	{
-		$this->out("Running test '{$test->name}...'");
+		$this->out("Running test \"{$test->name}\" ...");
 
 		$this->current_test = $test;
 
@@ -774,7 +814,11 @@ abstract class fu
 		try {
 			$this->{$test->method}();
 		} catch (Exception $e) {
-			$this->exception_handler($e);
+			if ($e instanceof HandledError) {
+				// this error has already been handled
+			} else {
+				$this->exception_handler($e);
+			}
 		}
 
 		$time_after_run = microtime(true);
@@ -1081,7 +1125,7 @@ abstract class fu
 	 * @param string $msg optional description of assertion
 	 * @param bool $expected_fail optionally expect this test to fail
 	 */
-	public function fail($msg = null, $expected_fail = false)
+	public function fail($msg, $expected_fail = false)
 	{
 		$assertion = new Assertion(
 			__FUNCTION__,
@@ -1098,18 +1142,63 @@ abstract class fu
 	/**
 	 * Fail an assertion in an expected way
 	 *
-	 * @param string $msg optional description of assertion
+	 * @param string $msg description of the reason for expected failure
 	 * @see fail()
 	 */
-	public function expect_fail($msg = null)
+	public function expect_fail($msg)
 	{
 		$this->fail($msg, true);
 	}
 
 	/**
-	 * @TODO
+	 * Assert an error being triggered, or an Exception being thrown, while executing an anonymous function.
+	 *
+	 * @param $type int|string expected error-code; or the name of the expected Exception-type
+	 * @param $msg_or_function string|Closure the message, if you wish to provide one - or an anonymous function
+	 * @param Closure|null $function an anonymous function; or null if $msg_or_function is a function
 	 */
-	public function expect($int)
+	public function fails($type, $msg_or_function, Closure $function=null)
 	{
+		/**
+		 * @var $error Error
+		 */
+
+		if ($msg_or_function instanceof Closure) {
+			$function = $msg_or_function;
+			$msg = 'expected Exception of type '.$type;
+		} else {
+			$msg = $msg_or_function;
+		}
+
+		$assertion = new Assertion(
+			__FUNCTION__,
+			array($type),
+			false, // assume failure
+			$msg,
+			'Expected: ' . (is_int($type) ? $this->error_labels[$type] : $type.' Exception')
+		);
+
+		$assertion->expected_error = $type;
+
+		$this->current_test->assertions[] = $assertion;
+
+		// running the function has to be the last thing we do, as it may (should) trigger an error:
+
+		try {
+			$function();
+		} catch (Exception $e) {
+			if ($e instanceof HandledError) {
+				if (is_int($type)) {
+					$assertion->result = ($e->errno & $type) > 0;
+					$error = end($this->current_test->errors);
+					$error->expected = true;
+				}
+			} else {
+				if (is_string($type)) {
+					$assertion->result = $e instanceof $type;
+					$this->exception_handler($e, $assertion->result);
+				}
+			}
+		}
 	}
 }

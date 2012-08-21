@@ -6,6 +6,8 @@ use FUnit\HtmlReport;
 
 require __DIR__ . '/FUnit.php';
 
+class ExampleException extends Exception {}
+
 class ExampleTest extends fu
 {
 	protected function setup()
@@ -46,18 +48,50 @@ class ExampleTest extends fu
 		$this->expect_fail('This is a good place to describe a missing test');
 	}
 
-	public function forced_errors_and_exceptions()
+	public function forced_error()
 	{
-		trigger_error('This was triggered inside a test', E_USER_ERROR);
+		trigger_error('this notice was triggered inside a test', E_USER_NOTICE);
+		trigger_error('this error was triggered inside a test', E_USER_ERROR);
+		// throwing an E_USER_ERROR will interrupt and fail this test
+		trigger_error('This will never execute', E_USER_ERROR);
+	}
 
-		trigger_error('This was triggered inside a test', E_USER_NOTICE);
-
+	public function forced_exception()
+	{
 		throw new Exception('This was thrown inside a test');
+		// throwing an Exception will interrupt and fail this test
+		throw new Exception('This will never execute');
+	}
+
+	public function expected_error()
+	{
+		$this->fails(E_USER_ERROR, 'this function is expected to trigger an error', function() {
+			trigger_error('this error is expected and will cause the error to succeed', E_USER_ERROR);
+		});
+
+		$this->fails(E_USER_NOTICE, 'this function was expected to trigger a notice', function() {
+			trigger_error('this assertion will fail because a notice was expected', E_USER_ERROR);
+		});
+
+		$this->fails(E_USER_ERROR, 'this function was expected to trigger an error', function() {
+			// this test fails because it does not trigger the expected error
+		});
+	}
+
+	public function expected_exception()
+	{
+		$this->fails('ExampleException', 'this function is expected to throw an ExampleException', function() {
+			throw new ExampleException();
+		});
+
+		$this->fails('ExampleException', 'this function was expected to throw an ExampleException', function() {
+			// this test fails because it does not throw the expected Exception
+		});
 	}
 }
 
 $test = new ExampleTest();
 
-$test->report = new HtmlReport();
+#$test->run(new FUnit\ConsoleReport());
 
 $test->run();
