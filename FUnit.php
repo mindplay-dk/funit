@@ -509,7 +509,26 @@ class HtmlReport extends Report
 
 		echo "<h1>" . htmlspecialchars($fu->title) . "</h1>\n";
 
-		echo "<tt>{$messages}</tt>\n";
+		echo "<tt>{$messages}\n";
+
+		if ($fu->coverage) {
+			echo '<br/><strong>Code Coverage</strong><br/>';
+			foreach ($fu->coverage->get_results($fu) as $file) {
+				$uncovered = $file->get_uncovered_lines();
+
+				echo '* '.$file->path . ': '.count($uncovered).' of '.(count($file->lines)).' lines uncovered<br/>';
+
+				/*
+				if ($this->debug) {
+					foreach ($uncovered as $line => $code) {
+						echo sprintf('%5d', $line).htmlspecialchars($code).'<br/>';
+					}
+				}
+				*/
+			}
+		}
+
+		echo '</tt>';
 
 		echo "<h2>php version ".phpversion()."; zend engine version ".zend_version()."</h2>\n";
 
@@ -595,6 +614,130 @@ class HandledError extends Exception
 	}
 }
 
+/**
+ * This class represents the results of code-coverage analysis of an individual file.
+ */
+class FileCoverage
+{
+	/**
+	 * @param $path string
+	 * @param $lines int
+	 * @param $covered int
+	 */
+	public function __construct($path)
+	{
+		$this->path = $path;
+		$this->lines = array_map(function($line) { return trim($line, "\r"); }, explode("\n", file_get_contents($path)));
+		$this->covered = array_fill(0, count($this->lines), false);
+	}
+
+	/**
+	 * @var string path to the file
+	 */
+	public $path;
+
+	/**
+	 * @var string[] lines of code read from the covered file
+	 */
+	public $lines;
+
+	/**
+	 * @var bool[] map where line number => coverage status
+	 */
+	protected $covered = array();
+
+	/**
+	 * @param $line int
+	 * @param $covered bool
+	 */
+	public function cover($line)
+	{
+		$this->covered[$line] = true;
+	}
+
+	/**
+	 * @return string[]
+	 */
+	public function get_uncovered_lines()
+	{
+		$uncovered = array();
+
+		foreach ($this->covered as $line => $covered) {
+			if (!$covered) {
+				$uncovered[$line] = $this->lines[$line];
+			}
+		}
+
+		return $uncovered;
+	}
+}
+
+/**
+ * Interface for code-coverage providers
+ */
+interface Coverage
+{
+	public function enable(fu $fu);
+
+	public function disable(fu $fu);
+
+	/**
+	 * @param fu $fu
+	 * @return FileCoverage[]
+	 */
+	public function get_results(fu $fu);
+}
+
+/**
+ * Code-coverage provider for XDebug
+ *
+ * Also compatible with Zend Debugger, but Zend Optimizer must be turned off, and the
+ * following configuration directives must be set in "etc/config/debugger.ini":
+ *
+ *   zend_debugger.enable_coverage=1
+ *   zend_debugger.xdebug_compatible_coverage=1
+ *
+ * You must start the debugging-session, e.g. by adding "?start_debug=1" to the URL.
+ */
+class XDebugCoverage implements Coverage
+{
+	public function enable(fu $fu)
+	{
+		xdebug_stop_code_coverage(true);
+		xdebug_start_code_coverage(XDEBUG_CC_UNUSED + XDEBUG_CC_DEAD_CODE);
+	}
+
+	public function disable(fu $fu)
+	{
+		xdebug_stop_code_coverage(false);
+	}
+
+	public function get_results(fu $fu)
+	{
+		/**
+		 * @var $files FileCoverage[]
+		 */
+
+		static $uncovered = array('', '}', 'else'); // we can safely ignore uncovered empty lines, closing braces and else-clauses that don't have a statement
+
+		$files = array();
+
+		foreach (xdebug_get_code_coverage() as $path => $lines) {
+			$file = new FileCoverage($path);
+
+			foreach ($lines as $line => $coverage) {
+				if (in_array(trim($lines[$line]), $uncovered) || $coverage !== -1) {
+					$file->cover($line);
+				}
+			}
+
+			$files[] = $file;
+		}
+
+		return $files;
+	}
+}
+
 abstract class fu
 {
 	const VERSION = '0.3';
@@ -643,6 +786,11 @@ abstract class fu
 
 	public $fixtures = array();
 
+	/**
+	 * @var Coverage
+	 */
+	public $coverage;
+
 	public function __construct()
 	{
 		// configure test title:
@@ -658,6 +806,13 @@ abstract class fu
 		foreach ($errors as $name => $value) {
 			if (strncmp('E_', $name, 2) === 0) {
 				$this->error_labels[$value] = strtr(substr($name, 2), '_', ' ');
+			}
+		}
+
+		// configure code coverage:
+		if (function_exists('xdebug_start_code_coverage')) {
+			if (ini_get('xdebug.coverage_enable') || (ini_get('zend_debugger.enable_coverage') && ini_get('zend_debugger.xdebug_compatible_coverage'))) {
+				$this->coverage = new XDebugCoverage();
 			}
 		}
 	}
@@ -896,8 +1051,18 @@ abstract class fu
 		// set handlers:
 		$old_error_handler = set_error_handler(array($this, 'error_handler'));
 
+		// enable coverage:
+		if ($this->coverage) {
+			$this->coverage->enable($this);
+		}
+
 		// run tests:
 		$this->run_tests($filter);
+
+		// disable coverage:
+		if ($this->coverage) {
+			$this->coverage->disable($this);
+		}
 
 		// restore handlers:
 		if ($old_error_handler) {
