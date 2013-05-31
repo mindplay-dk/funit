@@ -1,17 +1,26 @@
 {
-	"name": "funkatron/funit",
+	"name": "mindplay/funit",
+    "type": "library",
 	"description": "A simple test suite for PHP 5.3+, partially inspired by QUnit.",
-	"homepage": "http://github.com/funkatron/FUnit",
+	"homepage": "http://github.com/mindplay/funit",
 	"license": "Apache 2.0",
 	"keywords": ["test", "unit"],
 	"authors": [
 		{
 			"name": "Ed Finkler",
 			"homepage": "http://funkatron.com"
-		}
+		},
+        {
+            "name": "Rasmus Schultz",
+            "homepage": "http://blog.mindplay.dk/"
+        }
 	],
 	"require": {
 		"php": ">=5.3"
 	},
-	"type": "library"
+    "autoload": {
+        "psr-0": {
+            "mindplay\\funit": ""
+        }
+    }
 }

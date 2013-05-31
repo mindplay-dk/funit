@@ -613,7 +613,7 @@ abstract class TestSuite extends Accessors
     public function fails($type, $msg_or_function, Closure $function = null)
     {
         /**
-         * @var $error Error
+         * @var Error $error
          */
 
         if ($msg_or_function instanceof Closure) {
