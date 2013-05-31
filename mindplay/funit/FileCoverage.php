@@ -9,18 +9,18 @@ class FileCoverage
 {
     /**
      * @param $path    string
-     * @param $lines   int
-     * @param $covered int
      */
     public function __construct($path)
     {
         $this->path = $path;
+
         $this->lines = array_map(
             function ($line) {
                 return trim($line, "\r");
             },
             explode("\n", file_get_contents($path))
         );
+
         $this->covered = array_fill(0, count($this->lines), false);
     }
 
@@ -40,8 +40,7 @@ class FileCoverage
     protected $covered = array();
 
     /**
-     * @param $line    int
-     * @param $covered bool
+     * @param int $line
      */
     public function cover($line)
     {

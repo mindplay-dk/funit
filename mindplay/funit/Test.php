@@ -7,7 +7,7 @@ use Exception;
 use ReflectionClass;
 use ReflectionMethod;
 
-abstract class Test
+abstract class Test extends Accessors
 {
     const VERSION = '0.3';
 
@@ -38,7 +38,7 @@ abstract class Test
     public $title;
 
     /**
-     * @var Test[] individual tests configured for this test-suite.
+     * @var TestResult[] individual tests configured for this test-suite.
      */
     public $tests = array();
 
@@ -49,7 +49,7 @@ abstract class Test
     public $report = null;
 
     /**
-     * @var Test the Test that is currently being run
+     * @var TestResult the Test that is currently being run
      */
     public $current_test = null;
 
@@ -221,9 +221,9 @@ abstract class Test
     /**
      * Run a single test of the passed $name
      *
-     * @param Test $test the Test to run
+     * @param TestResult $test the Test to run
      *
-     * @note Normally you would not call this method directly
+     * @internal this method is for internal use within the library
      * @see  run_tests()
      * @see  setup()
      * @see  teardown()
