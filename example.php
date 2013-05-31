@@ -1,14 +1,14 @@
 <?php
 
-use FUnit\fu;
+require './autoload.php';
 
-use FUnit\HtmlReport;
+use mindplay\funit\Test;
+use mindplay\funit\HtmlReport;
 
-require __DIR__ . '/FUnit.php';
+class ExampleException extends Exception
+{}
 
-class ExampleException extends Exception {}
-
-class ExampleTest extends fu
+class ExampleTest extends Test
 {
     protected function setup()
     {
