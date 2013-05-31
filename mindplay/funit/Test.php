@@ -300,6 +300,7 @@ abstract class Test
      *
      * @param bool|Report $report the Report to render; or true to render the default report, false to disable
      * @param string      $filter optional test case name filter
+     * @return int error code (0 or 1, for use with an exit statement to set errorlevel on command-line)
      *
      * @see run_tests()
      */
@@ -350,6 +351,8 @@ abstract class Test
             $this->report->render_body($this);
             $this->report->render_footer($this);
         }
+
+        return $this->error_count() > 0 ? 1 : 0;
     }
 
     /**

@@ -94,4 +94,4 @@ $test = new ExampleTest();
 
 #$test->run(new FUnit\ConsoleReport());
 
-$test->run();
+exit($test->run());
