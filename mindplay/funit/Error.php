@@ -7,12 +7,39 @@ namespace mindplay\funit;
  */
 class Error
 {
+    /**
+     * @var string
+     */
     public $datetime;
+
+    /**
+     * @var int
+     */
     public $num;
+
+    /**
+     * @var string
+     */
     public $type;
+
+    /**
+     * @var string
+     */
     public $msg;
+
+    /**
+     * @var string
+     */
     public $file;
+
+    /**
+     * @var int
+     */
     public $line;
+
+    /**
+     * @var bool
+     */
     public $expected = false;
 
     /**

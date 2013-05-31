@@ -15,18 +15,18 @@ namespace mindplay\funit;
  */
 class XDebugCoverage implements Coverage
 {
-    public function enable(Test $fu)
+    public function enable(TestSuite $fu)
     {
         xdebug_stop_code_coverage(true);
         xdebug_start_code_coverage(XDEBUG_CC_UNUSED + XDEBUG_CC_DEAD_CODE);
     }
 
-    public function disable(Test $fu)
+    public function disable(TestSuite $fu)
     {
         xdebug_stop_code_coverage(false);
     }
 
-    public function get_results(Test $fu)
+    public function get_results(TestSuite $fu)
     {
         /**
          * @var $files FileCoverage[]

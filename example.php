@@ -2,13 +2,13 @@
 
 require './autoload.php';
 
-use mindplay\funit\Test;
+use mindplay\funit\TestSuite;
 use mindplay\funit\HtmlReport;
 
 class ExampleException extends Exception
 {}
 
-class ExampleTest extends Test
+class ExampleTest extends TestSuite
 {
     protected function setup()
     {

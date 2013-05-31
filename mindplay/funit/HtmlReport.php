@@ -9,7 +9,7 @@ namespace mindplay\funit;
  */
 class HtmlReport extends Report
 {
-    public function render_header(Test $fu)
+    public function render_header(TestSuite $fu)
     {
         ob_start();
     }
@@ -25,11 +25,11 @@ class HtmlReport extends Report
         }
     }
 
-    public function render_body(Test $fu)
+    public function render_body(TestSuite $suite)
     {
         $messages = ob_get_clean();
 
-        $test_counts = $fu->test_counts();
+        $test_counts = $suite->test_counts();
 
         $check = $test_counts['run'] === $test_counts['pass']
             ? '&#10004;' // checkmark
@@ -37,7 +37,7 @@ class HtmlReport extends Report
 
         echo "<!DOCTYPE html>\n"
             . "<head>\n"
-            . "<title>{$check} " . htmlspecialchars($fu->title) . "</title>\n"
+            . "<title>{$check} " . htmlspecialchars($suite->title) . "</title>\n"
             . "<style type=\"text/css\">\n"
             . "body { font-family: Helvetica Neue Light, HelveticaNeue-Light, Helvetica Neue, Calibri, Helvetica, Arial, sans-serif; }\n"
             . "h1 { padding:0.5em 0 0.5em 1em; margin:0; color:#C2CCD1; background:#0D3349; font-size:1.5em; line-height:1em; font-weight:normal; border-radius:15px 15px 0 0; }\n"
@@ -73,13 +73,13 @@ class HtmlReport extends Report
             . "</head>\n"
             . "<body>\n";
 
-        echo "<h1>" . htmlspecialchars($fu->title) . "</h1>\n";
+        echo "<h1>" . htmlspecialchars($suite->title) . "</h1>\n";
 
         echo "<tt>{$messages}\n";
 
-        if ($fu->coverage) {
+        if ($suite->coverage) {
             echo '<br/><strong>Code Coverage</strong><br/>';
-            foreach ($fu->coverage->get_results($fu) as $file) {
+            foreach ($suite->coverage->get_results($suite) as $file) {
                 $uncovered = $file->get_uncovered_lines();
 
                 echo '* ' . $file->path . ': ' . count($uncovered) . ' of ' . (count(
@@ -103,17 +103,17 @@ class HtmlReport extends Report
         echo "<div class=\"summary\">\n";
         echo "<p>{$test_counts['run']} tests: {$test_counts['pass']} of {$test_counts['total']} passed</p>\n";
 
-        $totals = $fu->assertion_counts();
+        $totals = $suite->assertion_counts();
         echo "<p>{$totals->count} assertions: {$totals->pass} passed, {$totals->fail} failed, {$totals->expected_fail} expected failed</p>\n";
 
-        $err_count = $fu->error_count();
+        $err_count = $suite->error_count();
         echo "<p>{$err_count} errors/exceptions logged</p>\n";
 
         echo "</div>\n";
 
         echo "<div class=\"report\">\n";
 
-        foreach ($fu->tests as $test) {
+        foreach ($suite->tests as $test) {
             $assert_counts = $test->get_assertion_count();
 
             $status = $test->pass ? '&#10004; PASS' : '&#10008; FAIL';
@@ -159,7 +159,7 @@ class HtmlReport extends Report
         echo "</div>\n";
     }
 
-    public function render_footer(Test $fu)
+    public function render_footer(TestSuite $fu)
     {
         echo "</body></html>";
     }

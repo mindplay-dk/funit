@@ -69,7 +69,7 @@ class ConsoleReport extends Report
         $this->supports_colors = function_exists('posix_isatty') && posix_isatty(STDOUT);
     }
 
-    public function render_header(Test $fu)
+    public function render_header(TestSuite $fu)
     {
         if (! $this->console) {
             echo "<!DOCTYPE html>\n"
@@ -90,13 +90,13 @@ class ConsoleReport extends Report
         }
     }
 
-    public function render_body(Test $fu)
+    public function render_body(TestSuite $suite)
     {
         $this->out("");
         $this->out("RESULTS");
         $this->out("--------------------------------------------");
 
-        foreach ($fu->tests as $test) {
+        foreach ($suite->tests as $test) {
 
             $assert_counts = $test->get_assertion_count();
 
@@ -155,7 +155,7 @@ class ConsoleReport extends Report
             $this->out("");
         }
 
-        $err_count = $fu->error_count();
+        $err_count = $suite->error_count();
 
         $err_color = ($err_count > 0)
             ? 'RED'
@@ -166,7 +166,7 @@ class ConsoleReport extends Report
             . $this->color($err_count, $err_color)
         );
 
-        $totals = $fu->assertion_counts();
+        $totals = $suite->assertion_counts();
 
         $this->out(
             "ASSERTIONS: "
@@ -176,7 +176,7 @@ class ConsoleReport extends Report
             . $this->color("{$totals->expected_fail} expected fail)", 'YELLOW')
         );
 
-        $test_counts = $fu->test_counts();
+        $test_counts = $suite->test_counts();
 
         $this->out(
             "TESTS: {$test_counts['run']} run, "
@@ -185,7 +185,7 @@ class ConsoleReport extends Report
         );
     }
 
-    public function render_footer(Test $fu)
+    public function render_footer(TestSuite $fu)
     {
         if (! $this->console) {
             echo "</body></html>";

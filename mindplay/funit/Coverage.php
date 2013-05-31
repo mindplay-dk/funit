@@ -7,14 +7,14 @@ namespace mindplay\funit;
  */
 interface Coverage
 {
-    public function enable(Test $fu);
+    public function enable(TestSuite $fu);
 
-    public function disable(Test $fu);
+    public function disable(TestSuite $fu);
 
     /**
-     * @param Test $fu
+     * @param TestSuite $fu
      *
      * @return FileCoverage[]
      */
-    public function get_results(Test $fu);
+    public function get_results(TestSuite $fu);
 }

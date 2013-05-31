@@ -7,9 +7,24 @@ namespace mindplay\funit;
  */
 class AssertionCount
 {
+    /**
+     * @var int
+     */
     public $count = 0;
+
+    /**
+     * @var int
+     */
     public $pass = 0;
+
+    /**
+     * @var int
+     */
     public $fail = 0;
+
+    /**
+     * @var int
+     */
     public $expected_fail = 0;
 
     /**

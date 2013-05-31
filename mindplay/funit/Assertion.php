@@ -7,14 +7,48 @@ namespace mindplay\funit;
  */
 class Assertion
 {
+    /**
+     * @var string
+     */
     public $func_name;
+
+    /**
+     * @var array
+     */
     public $func_args;
+
+    /**
+     * @var mixed
+     */
     public $result;
+
+    /**
+     * @var string|null
+     */
     public $msg;
+
+    /**
+     * @var string|null
+     */
     public $description;
+
+    /**
+     * @var bool
+     */
     public $expected_fail = false;
+
+    /**
+     * @var null
+     */
     public $expected_error = null;
 
+    /**
+     * @param string $func_name
+     * @param array $func_args
+     * @param mixed $result
+     * @param string|null $msg
+     * @param string|null $description
+     */
     public function __construct($func_name, $func_args, $result, $msg = null, $description = null)
     {
         $this->func_name = $func_name;
@@ -24,6 +58,9 @@ class Assertion
         $this->description = $description;
     }
 
+    /**
+     * @return string
+     */
     public function format_args()
     {
         $strings = array_map(
