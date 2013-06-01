@@ -1,13 +1,26 @@
 # mindplay-funit
 
 A lightweight test suite for PHP 5.3+
-based on [FUnit](https://github.com/funkatron/FUnit) by [Ed Finkler](https://github.com/funkatron/).
+
+Based on [FUnit](https://github.com/funkatron/FUnit) by [Ed Finkler](https://github.com/funkatron/).
+
+Web-based report design based on [QUnit](http://qunitjs.com/).
 
 ## Features
 
 * Simple to write tests and get output – start writing tests **fast**
 * Short, straightforward syntax
 * Command-line and browser-based reporting
+
+## Screenshots
+
+### Running in the browser:
+
+![Browser Report](https://gist.github.com/mindplay-dk/951643aeb4c3872d539a/raw/02e4548ac6553d249ae81d07eb8dda8a0d5537c8/funit-browser.png)
+
+### Running on the command-line:
+
+![Console Report](https://gist.github.com/mindplay-dk/951643aeb4c3872d539a/raw/bbef43023f4e17fe63967a4481b0db80d4897ee7/funit-command-line.png)
 
 ## Usage
 
