@@ -16,11 +16,11 @@ Web-based report design based on [QUnit](http://qunitjs.com/).
 
 ### Running in the browser:
 
-![Browser Report](https://gist.github.com/mindplay-dk/951643aeb4c3872d539a/raw/02e4548ac6553d249ae81d07eb8dda8a0d5537c8/funit-browser.png)
+![Browser Report](http://i.imgur.com/L6qZWh5.png)
 
 ### Running on the command-line:
 
-![Console Report](https://gist.github.com/mindplay-dk/951643aeb4c3872d539a/raw/bbef43023f4e17fe63967a4481b0db80d4897ee7/funit-command-line.png)
+![Console Report](http://i.imgur.com/dulsIKb.png)
 
 ## Usage
 
