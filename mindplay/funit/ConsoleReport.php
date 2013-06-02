@@ -100,10 +100,10 @@ class ConsoleReport extends Report
 
             $assert_counts = $test->assertion_count;
 
-            if ($test->pass) {
+            if ($test->passed) {
                 $test_color = 'GREEN';
             } else {
-                if ($assert_counts->expected_fail > 0) {
+                if ($assert_counts->warnings > 0) {
                     $test_color = 'YELLOW';
                 } else {
                     $test_color = 'RED';
@@ -111,7 +111,7 @@ class ConsoleReport extends Report
             }
 
             $this->out(
-                "TEST: " . $this->color("{$test->name} ({$assert_counts->pass}/{$assert_counts->count}):", $test_color)
+                "TEST: " . $this->color("{$test->name} ({$assert_counts->passed}/{$assert_counts->count}):", $test_color)
             );
 
             foreach ($test->assertions as $assertion) {
@@ -171,17 +171,17 @@ class ConsoleReport extends Report
         $this->out(
             "ASSERTIONS: "
             . $this->color("{$totals->count} total", 'WHITE') . " ("
-            . $this->color("{$totals->pass} pass", 'GREEN') . ", "
-            . $this->color("{$totals->fail} fail", 'RED') . ", "
-            . $this->color("{$totals->expected_fail} expected fail)", 'YELLOW')
+            . $this->color("{$totals->passed} passed", 'GREEN') . ", "
+            . $this->color("{$totals->failed} failed", 'RED') . ", "
+            . $this->color("{$totals->warnings} warnings)", 'YELLOW')
         );
 
-        $test_counts = $suite->test_counts();
+        $results = $suite->results;
 
         $this->out(
-            "TESTS: {$test_counts['run']} run, "
-            . $this->color("{$test_counts['pass']} pass", 'GREEN') . ", "
-            . $this->color("{$test_counts['total']} total", 'WHITE')
+            "TESTS: {$results->run} run, "
+            . $this->color("{$results->passed} passed", 'GREEN') . ", "
+            . $this->color("{$results->total} total", 'WHITE')
         );
     }
 

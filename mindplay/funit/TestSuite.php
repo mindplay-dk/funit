@@ -9,6 +9,7 @@ use ReflectionMethod;
 
 /**
  * @property Test[] $tests
+ * @property-read TestResult $results summary of results from running the TestSuite
  */
 abstract class TestSuite extends Accessors
 {
@@ -274,10 +275,10 @@ abstract class TestSuite extends Accessors
         );
 
         if (count($test->errors) > 0) {
-            $test->pass = false;
+            $test->passed = false;
         } else {
             $count = $test->assertion_count;
-            $test->pass = $count->pass === $count->count;
+            $test->passed = $count->passed === $count->count;
         }
 
         $this->debug_out("Timing: " . json_encode($test->timing)); // json is easy to read
@@ -372,9 +373,9 @@ abstract class TestSuite extends Accessors
         foreach ($this->tests as $test) {
             $assert_counts = $test->assertion_count;
 
-            $total->pass += $assert_counts->pass;
-            $total->fail += $assert_counts->fail;
-            $total->expected_fail += $assert_counts->expected_fail;
+            $total->passed += $assert_counts->passed;
+            $total->failed += $assert_counts->failed;
+            $total->warnings += $assert_counts->warnings;
             $total->count += $assert_counts->count;
         }
 
@@ -382,28 +383,24 @@ abstract class TestSuite extends Accessors
     }
 
     /**
-     * Retrieves stats about tests run. returns an array with the keys 'total', 'pass', 'run'
-     *
-     * @note Normally you would not call this method directly
-     *
-     * @return array has keys 'total', 'pass', 'run'
+     * @see results
      */
-    public function test_counts()
+    protected function get_results()
     {
-        $total = count($this->tests);
-        $run = 0;
-        $pass = 0;
+        $result = new TestResult();
+
+        $result->total = count($this->tests);
 
         foreach ($this->tests as $test) {
-            if ($test->pass) {
-                $pass ++;
-            }
             if ($test->run) {
-                $run ++;
+                $result->run ++;
+            }
+            if ($test->passed) {
+                $result->passed ++;
             }
         }
 
-        return compact('total', 'pass', 'run');
+        return $result;
     }
 
     /**
@@ -533,7 +530,7 @@ abstract class TestSuite extends Accessors
      * @param mixed  $a   the actual value
      * @param string $msg optional description of assertion
      */
-    public function ok($a, $msg = null)
+    public function check($a, $msg = null)
     {
         $this->current_test->assertions[] = new Assertion(
             __FUNCTION__,

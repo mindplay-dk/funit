@@ -10,24 +10,24 @@ namespace mindplay\funit;
 class Test extends Accessors
 {
     /**
-     * @var string
+     * @var string display-friendly test name
      */
     public $name;
 
     /**
-     * @var bool
+     * @var string TestSuite method-name
+     */
+    public $method;
+
+    /**
+     * @var bool flag indicating whether this Test has been run
      */
     public $run = false;
 
     /**
-     * @var bool
+     * @var bool flag indicating whether this Tast has passed
      */
-    public $pass = false;
-
-    /**
-     * @var string test method-name
-     */
-    public $method;
+    public $passed = false;
 
     /**
      * @var Error[] list of Errors caught while running this Test
@@ -45,6 +45,10 @@ class Test extends Accessors
      */
     public $timing = array();
 
+    /**
+     * @param string $name display-friendly test name
+     * @param string $method TestSuite method-name
+     */
     public function __construct($name, $method)
     {
         $this->name = $name;
@@ -52,7 +56,7 @@ class Test extends Accessors
     }
 
     /**
-     * @return AssertionCount
+     * @see $assertion_count
      */
     protected function get_assertion_count()
     {

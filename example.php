@@ -17,8 +17,8 @@ class ExampleTest extends TestSuite
 
     public function this_is_a_test()
     {
-        $this->ok(1, "the integer '1' is okay");
-        $this->ok(0, "the integer '0' is not okay"); // this will fail!
+        $this->check(1, "the integer '1' is okay");
+        $this->check(0, "the integer '0' is not okay"); // this will fail!
     }
 
     public function another_test()

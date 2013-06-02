@@ -29,9 +29,9 @@ class HtmlReport extends Report
     {
         $messages = ob_get_clean();
 
-        $test_counts = $suite->test_counts();
+        $results = $suite->results;
 
-        $check = $test_counts['run'] === $test_counts['pass']
+        $check = $results->success
             ? '&#10004;' // checkmark
             : '&#10008;'; // fail "X"
 
@@ -101,10 +101,10 @@ class HtmlReport extends Report
         echo "<h2>php version " . phpversion() . "; zend engine version " . zend_version() . "</h2>\n";
 
         echo "<div class=\"summary\">\n";
-        echo "<p>{$test_counts['run']} tests: {$test_counts['pass']} of {$test_counts['total']} passed</p>\n";
+        echo "<p>{$results->run} tests: {$results->passed} of {$results->total} passed</p>\n";
 
         $totals = $suite->assertion_counts();
-        echo "<p>{$totals->count} assertions: {$totals->pass} passed, {$totals->fail} failed, {$totals->expected_fail} expected failed</p>\n";
+        echo "<p>{$totals->count} assertions: {$totals->passed} passed, {$totals->failed} failed, {$totals->warnings} warnings</p>\n";
 
         $err_count = $suite->error_count();
         echo "<p>{$err_count} errors/exceptions logged</p>\n";
@@ -116,13 +116,13 @@ class HtmlReport extends Report
         foreach ($suite->tests as $test) {
             $assert_counts = $test->assertion_count;
 
-            $status = $test->pass ? '&#10004; PASS' : '&#10008; FAIL';
+            $status = $test->passed ? '&#10004; PASS' : '&#10008; FAIL';
 
-            echo "<p class=\"toggle\">{$status}: {$test->name} ({$assert_counts->pass} pass, {$assert_counts->fail} fail"
-                . ($assert_counts->expected_fail === 0 ? '' : ", {$assert_counts->expected_fail} expected fail")
+            echo "<p class=\"toggle\">{$status}: {$test->name} ({$assert_counts->passed} pass, {$assert_counts->failed} fail"
+                . ($assert_counts->warnings === 0 ? '' : ", {$assert_counts->warnings} expected fail")
                 . ")</p>";
 
-            $display = $test->pass ? 'none' : 'block';
+            $display = $test->passed ? 'none' : 'block';
 
             echo "<ol style=\"display:{$display}\">\n";
 

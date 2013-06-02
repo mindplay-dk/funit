@@ -15,17 +15,17 @@ class AssertionCount
     /**
      * @var int
      */
-    public $pass = 0;
+    public $passed = 0;
 
     /**
      * @var int
      */
-    public $fail = 0;
+    public $failed = 0;
 
     /**
      * @var int
      */
-    public $expected_fail = 0;
+    public $warnings = 0;
 
     /**
      * @param Assertion $assertion
@@ -33,12 +33,12 @@ class AssertionCount
     public function tally(Assertion $assertion)
     {
         if ($assertion->result) {
-            $this->pass ++;
+            $this->passed ++;
         } else {
             if ($assertion->is_warning) {
-                $this->expected_fail ++;
+                $this->warnings ++;
             } else {
-                $this->fail ++;
+                $this->failed ++;
             }
         }
 
