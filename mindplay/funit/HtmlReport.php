@@ -50,9 +50,9 @@ class HtmlReport extends Report
             . "div.report p { display:block; margin:0; color:#366097; font-size:small; font-weight:bold; cursor:pointer; }\n"
             . "div.report ol { display:block; list-style-position:inside; list-style-type:decimal; margin:0.2em 0 0.5em 0; padding: 0.5em; background-color:white; border-radius:15px; box-shadow:inset 0px 2px 13px #999; }\n"
             . "div.report ol li { margin:0.5em; padding:0.4em 0.5em 0.4em 0.5em; border-bottom:none; color:#5E740B; list-style-position:inside; font-size:small; }\n"
-            . "div.report ol li.pass { border-left:25px solid #C6E746; }\n"
-            . "div.report ol li.fail { border-left:25px solid #EE5757; }\n"
-            . "div.report ol li.expected-fail { border-left:25px solid #EEE746; }\n"
+            . "div.report ol li.passed { border-left:25px solid #C6E746; }\n"
+            . "div.report ol li.failed { border-left:25px solid #EE5757; }\n"
+            . "div.report ol li.warning { border-left:25px solid #EEE746; }\n"
             . "div.report ol li.error { list-style-type:none; border-left:25px solid #2B81AF; }\n"
             . "div.report ol li.expected-error { list-style-type:none; border-left:25px solid #A9C2CF; }\n"
             . "</style>\n"
@@ -119,7 +119,7 @@ class HtmlReport extends Report
             $status = $test->passed ? '&#10004; PASS' : '&#10008; FAIL';
 
             echo "<p class=\"toggle\">{$status}: {$test->name} ({$assert_counts->passed} pass, {$assert_counts->failed} fail"
-                . ($assert_counts->warnings === 0 ? '' : ", {$assert_counts->warnings} expected fail")
+                . ($assert_counts->warnings === 0 ? '' : ", {$assert_counts->warnings} warnings")
                 . ")</p>";
 
             $display = $test->passed ? 'none' : 'block';
@@ -128,8 +128,8 @@ class HtmlReport extends Report
 
             foreach ($test->assertions as $assertion) {
                 $class = $assertion->is_warning
-                    ? 'expected-fail'
-                    : ($assertion->result ? 'pass' : 'fail');
+                    ? 'warning'
+                    : ($assertion->result ? 'passed' : 'failed');
 
                 $args = ($assertion->result === false) || ($this->debug === true)
                     ? $assertion->format_args()
