@@ -276,7 +276,7 @@ abstract class TestSuite extends Accessors
         if (count($test->errors) > 0) {
             $test->pass = false;
         } else {
-            $count = $test->get_assertion_count();
+            $count = $test->assertion_count;
             $test->pass = $count->pass === $count->count;
         }
 
@@ -370,7 +370,7 @@ abstract class TestSuite extends Accessors
         $total = new AssertionCount();
 
         foreach ($this->tests as $test) {
-            $assert_counts = $test->get_assertion_count();
+            $assert_counts = $test->assertion_count;
 
             $total->pass += $assert_counts->pass;
             $total->fail += $assert_counts->fail;
@@ -456,56 +456,56 @@ abstract class TestSuite extends Accessors
     }
 
     /**
-     * assert that $a is equal to $b. Uses `==` for comparison
+     * assert that $a is like $b: `$a == $b`
      *
      * @param mixed  $a   the actual value
      * @param mixed  $b   the expected value
      * @param string $msg optional description of assertion
      */
-    public function equal($a, $b, $msg = null)
+    public function like($a, $b, $msg = null)
     {
         $this->current_test->assertions[] = new Assertion(
             __FUNCTION__,
             array($a, $b),
             ($a == $b),
             $msg,
-            'Expected: ' . var_export($a, true) . ' and ' . var_export($b, true) . ' to be loosely equal'
+            'Expected: ' . var_export($a, true) . ' == ' . var_export($b, true)
         );
     }
 
     /**
-     * assert that $a is not equal to $b. Uses `!=` for comparison
+     * assert that $a is unlike $b: `$a != $b`
      *
      * @param mixed  $a   the actual value
      * @param mixed  $b   the expected value
      * @param string $msg optional description of assertion
      */
-    public function not_equal($a, $b, $msg = null)
+    public function unlike($a, $b, $msg = null)
     {
         $this->current_test->assertions[] = new Assertion(
             __FUNCTION__,
             array($a, $b),
             ($a != $b),
             $msg,
-            'Expected: ' . var_export($a, true) . ' and ' . var_export($b, true) . ' to be unequal'
+            'Expected: ' . var_export($a, true) . ' != ' . var_export($b, true)
         );
     }
 
     /**
-     * assert that $a is strictly equal to $b. Uses `===` for comparison
+     * assert that $a is strictly equal to $b: `$a === $b`
      *
      * @param mixed  $a   the actual value
      * @param mixed  $b   the expected value
      * @param string $msg optional description of assertion
      */
-    public function strict_equal($a, $b, $msg = null)
+    public function eq($a, $b, $msg = null)
     {
         $this->current_test->assertions[] = new Assertion(
             __FUNCTION__,
             array($a, $b),
             ($a === $b),
             $msg,
-            'Expected: ' . var_export($a, true) . ' and ' . var_export($b, true) . ' to be strictly equal'
+            'Expected: ' . var_export($a, true) . ' === ' . var_export($b, true)
         );
     }
 
@@ -516,19 +516,19 @@ abstract class TestSuite extends Accessors
      * @param mixed  $b   the expected value
      * @param string $msg optional description of assertion
      */
-    public function not_strict_equal($a, $b, $msg = null)
+    public function ne($a, $b, $msg = null)
     {
         $this->current_test->assertions[] = new Assertion(
             __FUNCTION__,
             array($a, $b),
             ($a !== $b),
             $msg,
-            'Expected: ' . var_export($a, true) . ' and ' . var_export($b, true) . ' to be strictly unequal'
+            'Expected: ' . var_export($a, true) . ' !== ' . var_export($b, true)
         );
     }
 
     /**
-     * assert that $a is truthy. Casts $a to boolean for result
+     * assert that $a is truthy: `(bool) $a === true`
      *
      * @param mixed  $a   the actual value
      * @param string $msg optional description of assertion
@@ -540,15 +540,15 @@ abstract class TestSuite extends Accessors
             array($a),
             (bool)$a,
             $msg,
-            'Expected: ' . var_export($a, true) . ' to be truthy'
+            'Expected: (bool) ' . var_export($a, true) . ' === true'
         );
     }
 
     /**
-     * assert that $haystack has a key or property named $needle. If $haystack
-     * is neither, returns false
+     * assert that $haystack has is an array with a index like $needle,
+     * or an object with a property named $needle.
      *
-     * @param string       $needle   the key or property to look for
+     * @param string       $needle   the index or property-name to test for
      * @param array|object $haystack the array or object to test
      * @param string       $msg      optional description of assertion
      */
@@ -572,12 +572,12 @@ abstract class TestSuite extends Accessors
     }
 
     /**
-     * Force a failed assertion
+     * Force a failed assertion (or issue a warning)
      *
-     * @param string $msg           optional description of assertion
-     * @param bool   $expected_fail optionally expect this test to fail
+     * @param string $msg        optional description of assertion
+     * @param bool   $is_warning set this to true, if this failure should be considered a warning only
      */
-    public function fail($msg, $expected_fail = false)
+    public function fail($msg, $is_warning = false)
     {
         $assertion = new Assertion(
             __FUNCTION__,
@@ -586,31 +586,31 @@ abstract class TestSuite extends Accessors
             $msg
         );
 
-        $assertion->expected_fail = $expected_fail;
+        $assertion->is_warning = $is_warning;
 
         $this->current_test->assertions[] = $assertion;
     }
 
     /**
-     * Fail an assertion in an expected way
+     * Fail an assertion in an expected way (issue a warning)
      *
      * @param string $msg description of the reason for expected failure
      *
      * @see fail()
      */
-    public function expect_fail($msg)
+    public function warn($msg)
     {
         $this->fail($msg, true);
     }
 
     /**
-     * Assert an error being triggered, or an Exception being thrown, while executing an anonymous function.
+     * Assert an error being triggered, or an Exception being thrown, while executing a given function.
      *
-     * @param              $type            int|string expected error-code; or the name of the expected Exception-type
-     * @param              $msg_or_function string|Closure the message, if you wish to provide one - or an anonymous function
-     * @param Closure|null $function        an anonymous function; or null if $msg_or_function is a function
+     * @param int|string     $type            expected (integer) error-code, or the name of the expected Exception-type (string)
+     * @param string|Closure $msg_or_function the message, if you wish to provide one - or an anonymous function
+     * @param Closure|null   $function        an anonymous function; or null if $msg_or_function is a function
      */
-    public function fails($type, $msg_or_function, Closure $function = null)
+    public function expect($type, $msg_or_function, Closure $function = null)
     {
         /**
          * @var Error $error

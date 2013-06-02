@@ -35,7 +35,7 @@ class AssertionCount
         if ($assertion->result) {
             $this->pass ++;
         } else {
-            if ($assertion->expected_fail) {
+            if ($assertion->is_warning) {
                 $this->expected_fail ++;
             } else {
                 $this->fail ++;

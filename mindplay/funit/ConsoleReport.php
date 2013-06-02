@@ -98,7 +98,7 @@ class ConsoleReport extends Report
 
         foreach ($suite->tests as $test) {
 
-            $assert_counts = $test->get_assertion_count();
+            $assert_counts = $test->assertion_count;
 
             if ($test->pass) {
                 $test_color = 'GREEN';
@@ -115,7 +115,7 @@ class ConsoleReport extends Report
             );
 
             foreach ($test->assertions as $assertion) {
-                if ($assertion->expected_fail) {
+                if ($assertion->is_warning) {
                     $assert_color = 'YELLOW';
                 } else {
                     $assert_color = $assertion->result ? 'GREEN' : 'RED';
@@ -127,7 +127,7 @@ class ConsoleReport extends Report
                     ? $assertion->format_args()
                     : '...';
 
-                $expected = ($assertion->expected_fail ? ' (expected)' : '');
+                $expected = ($assertion->is_warning ? ' (expected)' : '');
 
                 $this->out(
                     " * {$status}: "

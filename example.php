@@ -23,11 +23,11 @@ class ExampleTest extends TestSuite
 
     public function another_test()
     {
-        $this->equal(true, 1, "the integer '1' is truthy");
-        $this->not_strict_equal(true, 1, "the integer '1' is NOT true");
+        $this->like(true, 1, "the integer '1' is truthy");
+        $this->ne(true, 1, "the integer '1' is NOT true");
         // access a fixture
         $foobar = $this->fixture('foobar');
-        $this->equal($foobar['foo'], 'bar', "the fixture 'foobar' should have a key 'foo' equal to 'baz'");
+        $this->like($foobar['foo'], 'bar', "the fixture 'foobar' should have a key 'foo' equal to 'baz'");
 
         $fooarr = array('blam' => 'blaz');
         $this->has('blam', $fooarr, "\$fooarr has a key named 'blam'");
@@ -45,7 +45,7 @@ class ExampleTest extends TestSuite
 
     public function expected_failure()
     {
-        $this->expect_fail('This is a good place to describe a missing test');
+        $this->warn('This is a good place to describe a missing test');
     }
 
     public function forced_error()
@@ -65,26 +65,26 @@ class ExampleTest extends TestSuite
 
     public function expected_error()
     {
-        $this->fails(E_USER_ERROR, 'this function is expected to trigger an error', function() {
+        $this->expect(E_USER_ERROR, 'this function is expected to trigger an error', function() {
             trigger_error('this error is expected and will cause the error to succeed', E_USER_ERROR);
         });
 
-        $this->fails(E_USER_NOTICE, 'this function was expected to trigger a notice', function() {
+        $this->expect(E_USER_NOTICE, 'this function was expected to trigger a notice', function() {
             trigger_error('this assertion will fail because a notice was expected', E_USER_ERROR);
         });
 
-        $this->fails(E_USER_ERROR, 'this function was expected to trigger an error', function() {
+        $this->expect(E_USER_ERROR, 'this function was expected to trigger an error', function() {
             // this test fails because it does not trigger the expected error
         });
     }
 
     public function expected_exception()
     {
-        $this->fails('ExampleException', 'this function is expected to throw an ExampleException', function() {
+        $this->expect('ExampleException', 'this function is expected to throw an ExampleException', function() {
             throw new ExampleException();
         });
 
-        $this->fails('ExampleException', 'this function was expected to throw an ExampleException', function() {
+        $this->expect('ExampleException', 'this function was expected to throw an ExampleException', function() {
             // this test fails because it does not throw the expected Exception
         });
     }

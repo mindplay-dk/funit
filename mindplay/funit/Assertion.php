@@ -33,9 +33,9 @@ class Assertion
     public $description;
 
     /**
-     * @var bool
+     * @var bool true, if the Assertion was failed in an expected way
      */
-    public $expected_fail = false;
+    public $is_warning = false;
 
     /**
      * @var null

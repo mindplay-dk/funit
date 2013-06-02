@@ -4,8 +4,10 @@ namespace mindplay\funit;
 
 /**
  * This class represents the state/result of an individual test.
+ *
+ * @property-read AssertionCount $assertion_count
  */
-class Test
+class Test extends Accessors
 {
     /**
      * @var string
@@ -49,7 +51,10 @@ class Test
         $this->method = $method;
     }
 
-    public function get_assertion_count()
+    /**
+     * @return AssertionCount
+     */
+    protected function get_assertion_count()
     {
         return new AssertionCount($this->assertions);
     }

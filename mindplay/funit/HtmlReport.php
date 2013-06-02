@@ -114,7 +114,7 @@ class HtmlReport extends Report
         echo "<div class=\"report\">\n";
 
         foreach ($suite->tests as $test) {
-            $assert_counts = $test->get_assertion_count();
+            $assert_counts = $test->assertion_count;
 
             $status = $test->pass ? '&#10004; PASS' : '&#10008; FAIL';
 
@@ -127,7 +127,7 @@ class HtmlReport extends Report
             echo "<ol style=\"display:{$display}\">\n";
 
             foreach ($test->assertions as $assertion) {
-                $class = $assertion->expected_fail
+                $class = $assertion->is_warning
                     ? 'expected-fail'
                     : ($assertion->result ? 'pass' : 'fail');
 
@@ -135,7 +135,7 @@ class HtmlReport extends Report
                     ? $assertion->format_args()
                     : '...';
 
-                $expected = ($assertion->expected_fail ? ' (expected)' : '');
+                $expected = ($assertion->is_warning ? ' (expected)' : '');
 
                 echo "<li class=\"{$class}\">{$assertion->func_name}({$args}) {$assertion->msg}{$expected}</li>\n";
             }
