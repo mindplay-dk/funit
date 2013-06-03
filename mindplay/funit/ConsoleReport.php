@@ -166,7 +166,7 @@ class ConsoleReport extends Report
             . $this->color($err_count, $err_color)
         );
 
-        $totals = $suite->assertion_counts();
+        $totals = $suite->assertion_count;
 
         $this->out(
             "ASSERTIONS: "

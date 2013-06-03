@@ -8,8 +8,8 @@ use ReflectionClass;
 use ReflectionMethod;
 
 /**
- * @property Test[] $tests
  * @property-read TestResult $results summary of results from running the TestSuite
+ * @property-read AssertionCount $assertion_count the sum total of all Assertions across all Tests
  */
 abstract class TestSuite extends Accessors
 {
@@ -364,9 +364,9 @@ abstract class TestSuite extends Accessors
     }
 
     /**
-     * @return AssertionCount the sum total of all Assertions across all Tests
+     * @see $assertion_counts
      */
-    public function assertion_counts()
+    protected function get_assertion_count()
     {
         $total = new AssertionCount();
 

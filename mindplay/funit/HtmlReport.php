@@ -103,7 +103,7 @@ class HtmlReport extends Report
         echo "<div class=\"summary\">\n";
         echo "<p>{$results->run} tests: {$results->passed} of {$results->total} passed</p>\n";
 
-        $totals = $suite->assertion_counts();
+        $totals = $suite->assertion_count;
         echo "<p>{$totals->count} assertions: {$totals->passed} passed, {$totals->failed} failed, {$totals->warnings} warnings</p>\n";
 
         $err_count = $suite->error_count();
@@ -118,7 +118,7 @@ class HtmlReport extends Report
 
             $status = $test->passed ? '&#10004; PASS' : '&#10008; FAIL';
 
-            echo "<p class=\"toggle\">{$status}: {$test->name} ({$assert_counts->passed} pass, {$assert_counts->failed} fail"
+            echo "<p class=\"toggle\">{$status}: {$test->name} ({$assert_counts->passed} passed, {$assert_counts->failed} failed"
                 . ($assert_counts->warnings === 0 ? '' : ", {$assert_counts->warnings} warnings")
                 . ")</p>";
 
