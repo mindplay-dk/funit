@@ -29,8 +29,9 @@ class AssertionCount
 
     /**
      * @param Assertion $assertion
+     * @see __construct()
      */
-    public function tally(Assertion $assertion)
+    protected function tally(Assertion $assertion)
     {
         if ($assertion->result) {
             $this->passed ++;

@@ -9,23 +9,23 @@ namespace mindplay\funit;
  */
 class HtmlReport extends Report
 {
-    public function render_header(TestSuite $fu)
+    public function renderHeader(TestSuite $suite)
     {
         ob_start();
     }
 
-    public function render_message($str, $debug = false)
+    public function renderMessage($message, $debug = false)
     {
         if ($debug) {
             if ($this->debug) {
-                echo "<span>" . htmlspecialchars($str) . "</span><br/>";
+                echo "<span>" . htmlspecialchars($message) . "</span><br/>";
             }
         } else {
-            echo htmlspecialchars($str) . "<br/>";
+            echo htmlspecialchars($message) . "<br/>";
         }
     }
 
-    public function render_body(TestSuite $suite)
+    public function renderBody(TestSuite $suite)
     {
         $messages = ob_get_clean();
 
@@ -79,8 +79,8 @@ class HtmlReport extends Report
 
         if ($suite->coverage) {
             echo '<br/><strong>Code Coverage</strong><br/>';
-            foreach ($suite->coverage->get_results($suite) as $file) {
-                $uncovered = $file->get_uncovered_lines();
+            foreach ($suite->coverage->getCoverage($suite) as $file) {
+                $uncovered = $file->uncovered_lines;
 
                 echo '* ' . $file->path . ': ' . count($uncovered) . ' of ' . (count(
                         $file->lines
@@ -106,7 +106,7 @@ class HtmlReport extends Report
         $totals = $suite->assertion_count;
         echo "<p>{$totals->count} assertions: {$totals->passed} passed, {$totals->failed} failed, {$totals->warnings} warnings</p>\n";
 
-        $err_count = $suite->error_count();
+        $err_count = $suite->error_count;
         echo "<p>{$err_count} errors/exceptions logged</p>\n";
 
         echo "</div>\n";
@@ -132,7 +132,7 @@ class HtmlReport extends Report
                     : ($assertion->result ? 'passed' : 'failed');
 
                 $args = ($assertion->result === false) || ($this->debug === true)
-                    ? $assertion->format_args()
+                    ? $assertion->formatted
                     : '...';
 
                 $expected = ($assertion->is_warning ? ' (expected)' : '');
@@ -150,7 +150,7 @@ class HtmlReport extends Report
 
                 $cls = $error->expected ? 'expected-error' : 'error';
 
-                echo "<li class=\"$cls\">" . $error->type . ": {$error->msg} in {$source}</li>";
+                echo "<li class=\"$cls\">" . $error->type . ": {$error->message} in {$source}</li>";
             }
 
             echo "</ol>\n";
@@ -159,7 +159,7 @@ class HtmlReport extends Report
         echo "</div>\n";
     }
 
-    public function render_footer(TestSuite $fu)
+    public function renderFooter(TestSuite $suite)
     {
         echo "</body></html>";
     }

@@ -8,52 +8,53 @@ namespace mindplay\funit;
 class Error
 {
     /**
-     * @var string
+     * @var int numeric error code
      */
-    public $datetime;
+    public $code;
 
     /**
-     * @var int
-     */
-    public $num;
-
-    /**
-     * @var string
+     * @var string description of the type of error (e.g. 'E_SOMETHING' or 'FooException', etc.)
      */
     public $type;
 
     /**
-     * @var string
+     * @var string the error-message that was produced
      */
-    public $msg;
+    public $message;
 
     /**
-     * @var string
+     * @var string absolute path to the file where the error or exception was encountered
      */
     public $file;
 
     /**
-     * @var int
+     * @var int line number in the source-file where the error or exception was encountered
      */
     public $line;
 
     /**
-     * @var bool
+     * @var bool indicates whether this error was expected by an assertion
      */
     public $expected = false;
 
     /**
-     * @var string[] backtrace statements
+     * @var string[] backtrace information
+     * @see add_backtrace(addBacktrace
      */
     public $backtrace = array();
 
-    public function __construct($num, $type, $msg, $file, $line)
+    /**
+     * @param int $code numeric error code
+     * @param string $type description of the type of error (e.g. 'E_SOMETHING' or 'FooException', etc.)
+     * @param string $message the error-message that was produced
+     * @param string $file absolute path to the file where the error or exception was encountered
+     * @param int $line line number in the source-file where the error or exception was encountered
+     */
+    public function __construct($code, $type, $message, $file, $line)
     {
-        $this->datetime = date("Y-m-d H:i:s (T)");
-
-        $this->num = $num;
+        $this->code = $code;
         $this->type = $type;
-        $this->msg = $msg;
+        $this->message = $message;
         $this->file = $file;
         $this->line = $line;
     }
@@ -66,8 +67,10 @@ class Error
      * @see debug_backtrace()
      * @see Exception::getTrace()
      */
-    public function add_backtrace($backtrace)
+    public function setBacktrace($backtrace)
     {
+        $this->backtrace = array();
+
         foreach ($backtrace as $bt) {
             $str = '';
 

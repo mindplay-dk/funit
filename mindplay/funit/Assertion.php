@@ -4,31 +4,33 @@ namespace mindplay\funit;
 
 /**
  * This class represents an Assertion performed during a Test.
+ *
+ * @property-read string $formatted arguments formatted as a string for display
  */
 class Assertion
 {
     /**
-     * @var string
+     * @var string name of the TestSuite method that generated this Assertion
      */
     public $func_name;
 
     /**
-     * @var array
+     * @var array the arguments that were used to perform this Assertion
      */
     public $func_args;
 
     /**
-     * @var mixed
+     * @var bool the result of the Assertion (true = passed, false = failed)
      */
-    public $result;
+    public $result = false;
 
     /**
-     * @var string|null
+     * @var string|null an optional message describing the conditions under which this Assertion should pass or fail
      */
     public $msg;
 
     /**
-     * @var string|null
+     * @var string|null an optional description of the Assertion that was performed
      */
     public $description;
 
@@ -38,16 +40,16 @@ class Assertion
     public $is_warning = false;
 
     /**
-     * @var null
+     * @var int|string expected (integer) error-code, or the name of the expected Exception-type (string)
      */
     public $expected_error = null;
 
     /**
-     * @param string $func_name
-     * @param array $func_args
-     * @param mixed $result
-     * @param string|null $msg
-     * @param string|null $description
+     * @param string $func_name name of the TestSuite method that generated this Assertion
+     * @param array $func_args the arguments that were used to perform this Assertion
+     * @param bool $result the result of the Assertion (true = passed, false = failed)
+     * @param string|null $msg an optional message describing the conditions under which this Assertion should pass or fail
+     * @param string|null $description an optional description of the Assertion that was performed
      */
     public function __construct($func_name, $func_args, $result, $msg = null, $description = null)
     {
@@ -59,9 +61,9 @@ class Assertion
     }
 
     /**
-     * @return string
+     * @see $formatted
      */
-    public function format_args()
+    protected function get_formatted()
     {
         $strings = array_map(
             function ($var) {

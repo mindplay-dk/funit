@@ -69,28 +69,28 @@ class ConsoleReport extends Report
         $this->supports_colors = function_exists('posix_isatty') && posix_isatty(STDOUT);
     }
 
-    public function render_header(TestSuite $fu)
+    public function renderHeader(TestSuite $suite)
     {
         if (! $this->console) {
             echo "<!DOCTYPE html>\n"
-                . "<head><title>" . htmlspecialchars($fu->title) . " [FUnit]</title></head>\n"
+                . "<head><title>" . htmlspecialchars($suite->title) . " [FUnit]</title></head>\n"
                 . "<body style=\"background:black; color:white;\">\n";
         }
 
-        $this->out("UNIT TEST: " . $fu->title);
+        $this->out("UNIT TEST: " . $suite->title);
         $this->out("");
     }
 
-    public function render_message($str, $debug = false)
+    public function renderMessage($message, $debug = false)
     {
         if ($debug) {
-            $this->debug_out($str);
+            $this->debug_out($message);
         } else {
-            $this->out($str);
+            $this->out($message);
         }
     }
 
-    public function render_body(TestSuite $suite)
+    public function renderBody(TestSuite $suite)
     {
         $this->out("");
         $this->out("RESULTS");
@@ -124,7 +124,7 @@ class ConsoleReport extends Report
                 $status = $assertion->result ? 'PASS' : 'FAIL';
 
                 $args = ($assertion->result === false) || ($this->debug === true)
-                    ? $assertion->format_args()
+                    ? $assertion->formatted
                     : '...';
 
                 $expected = ($assertion->is_warning ? ' (expected)' : '');
@@ -145,7 +145,7 @@ class ConsoleReport extends Report
                     }
                     $this->out(
                         ' * ' . $this->color(
-                            $error->type . ": {$error->msg} in {$source}",
+                            $error->type . ": {$error->message} in {$source}",
                             $error->expected ? 'CYAN' : 'BLUE'
                         )
                     );
@@ -155,7 +155,7 @@ class ConsoleReport extends Report
             $this->out("");
         }
 
-        $err_count = $suite->error_count();
+        $err_count = $suite->error_count;
 
         $err_color = ($err_count > 0)
             ? 'RED'
@@ -185,7 +185,7 @@ class ConsoleReport extends Report
         );
     }
 
-    public function render_footer(TestSuite $fu)
+    public function renderFooter(TestSuite $suite)
     {
         if (! $this->console) {
             echo "</body></html>";

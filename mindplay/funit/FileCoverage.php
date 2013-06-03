@@ -4,11 +4,13 @@ namespace mindplay\funit;
 
 /**
  * This class represents the results of code-coverage analysis of an individual file.
+ *
+ * @property-read string[] $uncovered_lines uncovered lines of source-code (indexed by line-numbers)
  */
-class FileCoverage
+class FileCoverage extends Accessors
 {
     /**
-     * @param $path    string
+     * @param string $path absolute path to covered source-code file
      */
     public function __construct($path)
     {
@@ -30,7 +32,7 @@ class FileCoverage
     public $path;
 
     /**
-     * @var string[] lines of code read from the covered file
+     * @var string[] lines of code read from the covered file, indexed by line-numbers
      */
     public $lines;
 
@@ -40,7 +42,7 @@ class FileCoverage
     protected $covered = array();
 
     /**
-     * @param int $line
+     * @param int $line line to flag as covered
      */
     public function cover($line)
     {
@@ -48,9 +50,9 @@ class FileCoverage
     }
 
     /**
-     * @return string[]
+     * @see $uncovered_lines
      */
-    public function get_uncovered_lines()
+    protected function get_uncovered_lines()
     {
         $uncovered = array();
 

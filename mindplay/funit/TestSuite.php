@@ -10,6 +10,7 @@ use ReflectionMethod;
 /**
  * @property-read TestResult $results summary of results from running the TestSuite
  * @property-read AssertionCount $assertion_count the sum total of all Assertions across all Tests
+ * @property-read int $error_count the total number of errors caught in all tests
  */
 abstract class TestSuite extends Accessors
 {
@@ -74,7 +75,7 @@ abstract class TestSuite extends Accessors
         $this->title = get_class($this);
 
         // configure tests:
-        $this->tests = $this->get_tests();
+        $this->tests = $this->findTests();
 
         // configure error-labels:
         $consts = get_defined_constants(true);
@@ -116,13 +117,13 @@ abstract class TestSuite extends Accessors
     /**
      * Returns a list of the Tests implemented by the concrete test-class.
      *
-     * @return TestSuite[] list of detected Tests
+     * @return Test[] list of detected Tests
      */
-    protected function get_tests()
+    protected function findTests()
     {
         /**
          * @var ReflectionMethod $method
-         * @var TestSuite[]           $tests
+         * @var Test[] $tests
          */
 
         $class = new ReflectionClass(get_class($this));
@@ -152,24 +153,24 @@ abstract class TestSuite extends Accessors
     /**
      * Custom exception handler - records the exception as an Error instance.
      *
-     * @param Exception $e
+     * @param Exception $exception
      * @param bool      $expected
      *
-     * @see run_test()
+     * @see run_test(runTest
      */
-    protected function exception_handler($e, $expected = false)
+    protected function handleException(Exception $exception, $expected = false)
     {
         $error = new Error(
-            0,
-            'EXCEPTION: ' . get_class($e),
-            $e->getMessage(),
-            $e->getFile(),
-            $e->getLine()
+            $exception->getCode(),
+            'EXCEPTION: ' . get_class($exception),
+            $exception->getMessage(),
+            $exception->getFile(),
+            $exception->getLine()
         );
 
         $error->expected = $expected;
 
-        $error->add_backtrace($e->getTrace());
+        $error->setBacktrace($exception->getTrace());
 
         $this->current_test->errors[] = $error;
     }
@@ -182,23 +183,23 @@ abstract class TestSuite extends Accessors
      * @see run()
      * @see Test::$errors
      */
-    public function error_handler($num, $msg, $file, $line, $vars)
+    public function handleError($code, $message, $file, $line, $vars)
     {
         $error = new Error(
-            $num,
-            $this->error_labels[$num],
-            $msg,
+            $code,
+            $this->error_labels[$code],
+            $message,
             $file,
             $line
         );
 
-        $error->add_backtrace(debug_backtrace());
+        $error->setBacktrace(debug_backtrace());
 
         $this->current_test->errors[] = $error;
 
-        if (! in_array($num, $this->warnings, true)) {
-            // for non-warning level errors, interrupt execution by throwing an Exception:
-            throw new HandledError($num, $msg);
+        if (! in_array($code, $this->warnings, true)) {
+            // for non-warning level errors, interrupt the current Test by throwing an Exception:
+            throw new HandledError($code, $message);
         }
     }
 
@@ -210,19 +211,19 @@ abstract class TestSuite extends Accessors
     protected function out($str)
     {
         if ($this->report) {
-            $this->report->render_message($str);
+            $this->report->renderMessage($str);
         }
     }
 
     /**
-     * Output a debug message .
+     * Output a diagnostic message.
      *
      * @param $str string debug message to output
      */
-    protected function debug_out($str)
+    protected function debug($str)
     {
         if ($this->report) {
-            $this->report->render_message($str, true);
+            $this->report->renderMessage($str, true);
         }
     }
 
@@ -232,11 +233,11 @@ abstract class TestSuite extends Accessors
      * @param Test $test the Test to run
      *
      * @internal this method is for internal use within the library
-     * @see  run_tests()
-     * @see  setup()
-     * @see  teardown()
+     * @see run_tests(runTests
+     * @see setup()
+     * @see teardown()
      */
-    protected function run_test(Test $test)
+    protected function runTest(Test $test)
     {
         $this->out("Running test \"{$test->name}\" ...");
 
@@ -254,7 +255,7 @@ abstract class TestSuite extends Accessors
             if ($e instanceof HandledError) {
                 // this error has already been handled
             } else {
-                $this->exception_handler($e);
+                $this->handleException($e);
             }
         }
 
@@ -281,7 +282,7 @@ abstract class TestSuite extends Accessors
             $test->passed = $count->passed === $count->count;
         }
 
-        $this->debug_out("Timing: " . json_encode($test->timing)); // json is easy to read
+        $this->debug("Timing: " . json_encode($test->timing)); // json is easy to read
     }
 
     /**
@@ -291,14 +292,14 @@ abstract class TestSuite extends Accessors
      *
      * @param string $filter optional test case name filter
      *
-     * @see  run()
-     * @see  run_test()
+     * @see run()
+     * @see runTest()
      */
-    protected function run_tests($filter = null)
+    protected function runTests($filter = null)
     {
         foreach ($this->tests as $name => $test) {
             if (null === $filter || (stripos($name, $filter) !== false)) {
-                $this->run_test($test);
+                $this->runTest($test);
             }
         }
     }
@@ -310,7 +311,7 @@ abstract class TestSuite extends Accessors
      * @param string      $filter optional test case name filter
      * @return int error code (0 or 1, for use with an exit statement to set errorlevel on command-line)
      *
-     * @see run_tests()
+     * @see run_tests(runTests
      */
     public function run($report = true, $filter = null)
     {
@@ -330,11 +331,11 @@ abstract class TestSuite extends Accessors
 
         // render report header:
         if ($this->report) {
-            $this->report->render_header($this);
+            $this->report->renderHeader($this);
         }
 
         // set handlers:
-        $old_error_handler = set_error_handler(array($this, 'error_handler'));
+        $old_error_handler = set_error_handler(array($this, 'handleError'));
 
         // enable coverage:
         if ($this->coverage) {
@@ -342,7 +343,7 @@ abstract class TestSuite extends Accessors
         }
 
         // run tests:
-        $this->run_tests($filter);
+        $this->runTests($filter);
 
         // disable coverage:
         if ($this->coverage) {
@@ -356,15 +357,15 @@ abstract class TestSuite extends Accessors
 
         // render report:
         if ($this->report) {
-            $this->report->render_body($this);
-            $this->report->render_footer($this);
+            $this->report->renderBody($this);
+            $this->report->renderFooter($this);
         }
 
-        return $this->error_count() > 0 ? 1 : 0;
+        return $this->error_count > 0 ? 1 : 0;
     }
 
     /**
-     * @see $assertion_counts
+     * @see $assertion_count
      */
     protected function get_assertion_count()
     {
@@ -383,7 +384,7 @@ abstract class TestSuite extends Accessors
     }
 
     /**
-     * @see results
+     * @see $results
      */
     protected function get_results()
     {
@@ -401,20 +402,6 @@ abstract class TestSuite extends Accessors
         }
 
         return $result;
-    }
-
-    /**
-     * @return int the total number of errors caught in all tests
-     */
-    public function error_count()
-    {
-        $count = 0;
-
-        foreach ($this->tests as $test) {
-            $count += count($test->errors);
-        }
-
-        return $count;
     }
 
     /**
@@ -439,6 +426,20 @@ abstract class TestSuite extends Accessors
         }
 
         return $this->fixtures[$key];
+    }
+
+    /**
+     * @see $error_count
+     */
+    protected function get_error_count()
+    {
+        $count = 0;
+
+        foreach ($this->tests as $test) {
+            $count += count($test->errors);
+        }
+
+        return $count;
     }
 
     /**
@@ -639,14 +640,14 @@ abstract class TestSuite extends Accessors
         } catch (Exception $e) {
             if ($e instanceof HandledError) {
                 if (is_int($type)) {
-                    $assertion->result = ($e->errno & $type) > 0;
+                    $assertion->result = ($e->code & $type) > 0;
                     $error = end($this->current_test->errors);
                     $error->expected = true;
                 }
             } else {
                 if (is_string($type)) {
                     $assertion->result = $e instanceof $type;
-                    $this->exception_handler($e, $assertion->result);
+                    $this->handleException($e, $assertion->result);
                 }
             }
         }

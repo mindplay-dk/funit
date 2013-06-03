@@ -41,7 +41,7 @@ class Test extends Accessors
 
     /**
      * @var array[] timing information captured while running a test
-     * @see TestSuite::run_test()
+     * @see TestSuite::run_test(runTest
      */
     public $timing = array();
 
