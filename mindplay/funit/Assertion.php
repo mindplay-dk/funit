@@ -7,7 +7,7 @@ namespace mindplay\funit;
  *
  * @property-read string $formatted arguments formatted as a string for display
  */
-class Assertion
+class Assertion extends Accessors
 {
     /**
      * @var string name of the TestSuite method that generated this Assertion
