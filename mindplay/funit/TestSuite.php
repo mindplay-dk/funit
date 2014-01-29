@@ -309,9 +309,9 @@ abstract class TestSuite extends Accessors
      *
      * @param bool|Report $report the Report to render; or true to render the default report, false to disable
      * @param string      $filter optional test case name filter
-     * @return int error code (0 or 1, for use with an exit statement to set errorlevel on command-line)
+     * @return int error code (0 or 1, e.g. for use with an exit statement to set errorlevel on the command-line)
      *
-     * @see run_tests(runTests
+     * @see run_tests
      */
     public function run($report = true, $filter = null)
     {
@@ -361,7 +361,7 @@ abstract class TestSuite extends Accessors
             $this->report->renderFooter($this);
         }
 
-        return $this->error_count > 0 ? 1 : 0;
+        return $this->results->success ? 0 : 1;
     }
 
     /**

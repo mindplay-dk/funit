@@ -7,7 +7,7 @@ namespace mindplay\funit;
  *
  * @see TestSuite::test_counts()
  *
- * @property-read int $success
+ * @property-read bool $success
  */
 class TestResult extends Accessors
 {
