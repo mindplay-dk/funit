@@ -156,10 +156,14 @@ abstract class TestSuite extends Accessors
      * @param Exception $exception
      * @param bool      $expected
      *
-     * @see run_test(runTest
+     * @see runTest()
      */
     protected function handleException(Exception $exception, $expected = false)
     {
+        if ($expected) {
+            return; // expected exception is a success, not an error
+        }
+
         $error = new Error(
             $exception->getCode(),
             'EXCEPTION: ' . get_class($exception),
